@@ -31,10 +31,17 @@ PanelWindow {
             chatModel.append({
                 sender: "AI",
                 message: response,
-                thinking: reasoning || ""
+                thinking: reasoning || "",
+                toolName: "",
+                toolInput: "",
+                toolOutput: "",
+                toolStatus: ""
             });
+            var lastIndex = chatModel.count - 1;
             root.messageHistory = [...root.messageHistory, { role: "assistant", content: response }];
             if (wasAtEnd) chatView.positionViewAtEnd();
+            
+            checkForToolCall(lastIndex, response);
         }
         onResponseChunk: (chunk) => {
             var wasAtEnd = chatView.atYEnd;
@@ -46,7 +53,11 @@ PanelWindow {
                 chatModel.append({
                     sender: "AI",
                     message: chunk,
-                    thinking: ""
+                    thinking: "",
+                    toolName: "",
+                    toolInput: "",
+                    toolOutput: "",
+                    toolStatus: ""
                 });
             }
             if (wasAtEnd) chatView.positionViewAtEnd();
@@ -61,7 +72,11 @@ PanelWindow {
                     chatModel.append({
                     sender: "AI",
                     message: "",
-                    thinking: chunk
+                    thinking: chunk,
+                    toolName: "",
+                    toolInput: "",
+                    toolOutput: "",
+                    toolStatus: ""
                 });
             }
             if (wasAtEnd) chatView.positionViewAtEnd();
@@ -70,8 +85,11 @@ PanelWindow {
             root.isLoading = false;
             // Finalize message history
             if (chatModel.count > 0 && chatModel.get(chatModel.count - 1).sender === "AI") {
-                var lastItem = chatModel.get(chatModel.count - 1);
+                var lastIndex = chatModel.count - 1;
+                var lastItem = chatModel.get(lastIndex);
                 root.messageHistory = [...root.messageHistory, { role: "assistant", content: lastItem.message }];
+                
+                checkForToolCall(lastIndex, lastItem.message);
             }
         }
         onErrorOccurred: (error) => {
@@ -79,10 +97,18 @@ PanelWindow {
             var wasAtEnd = chatView.atYEnd;
             chatModel.append({
                 sender: "System",
-                message: "Error: " + error
+                message: "Error: " + error,
+                toolName: "",
+                toolInput: "",
+                toolOutput: "",
+                toolStatus: ""
             });
             if (wasAtEnd) chatView.positionViewAtEnd();
         }
+    }
+    
+    ApiClient {
+        id: backgroundApiClient
     }
     
     anchors {
@@ -199,6 +225,240 @@ PanelWindow {
         proc.running = true;
     }
 
+    function checkForToolCall(index, content) {
+        if (!content) return;
+
+        var trimmed = content.trim();
+        // Regex to match tool["name", "input1", "input2"]
+        var match = trimmed.match(/tool\["([^"]+)"(?:,\s*"([^"]+)")?(?:,\s*"([^"]+)")?\]$/);
+
+        if (match) {
+            var toolName = match[1];
+            var input1 = match[2];
+            var input2 = match[3];
+
+            if (toolName === "search") {
+                executeSearch(index, input1);
+            } else if (toolName === "getpage") {
+                executeGetPage(index, input1, input2);
+            }
+        }
+    }
+
+    function truncateOutput(text, limit) {
+        if (!text) return "";
+        var l = limit || 500;
+        if (text.length <= l) return text;
+        return text.substring(0, l) + "... [truncated]";
+    }
+
+    function executeSearch(index, query) {
+        chatModel.setProperty(index, "toolName", "search");
+        chatModel.setProperty(index, "toolInput", "\"" + query + "\"");
+        chatModel.setProperty(index, "toolStatus", "searching...");
+        
+        var xhr = new XMLHttpRequest();
+        var url = settings.searxngUrl + "/search?format=json&q=" + encodeURIComponent(query);
+        xhr.open("GET", url, true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        processSearchResults(index, query, response.results || []);
+                    } catch (e) {
+                        chatModel.setProperty(index, "toolStatus", "error parsing results");
+                        chatModel.setProperty(index, "toolOutput", e.message);
+                    }
+                } else {
+                    chatModel.setProperty(index, "toolStatus", "error " + xhr.status);
+                }
+            }
+        };
+        xhr.send();
+    }
+
+    function processSearchResults(index, query, results) {
+        if (results.length === 0) {
+            finishToolCall(index, "No results found for: " + query);
+            return;
+        }
+        
+        var topResults = results.slice(0, 3);
+        var otherResults = results.slice(3, 10);
+        
+        var fetchedContent = [];
+        var completed = 0;
+        
+        chatModel.setProperty(index, "toolStatus", "fetching pages (0/" + topResults.length + ")...");
+        
+        if (topResults.length === 0) {
+            finalizeSearch(index, query, [], otherResults);
+            return;
+        }
+
+        topResults.forEach((res, i) => {
+            fetchUrl(res.url, function(content) {
+                fetchedContent[i] = {
+                    title: res.title,
+                    url: res.url,
+                    content: content
+                };
+                completed++;
+                chatModel.setProperty(index, "toolStatus", "fetching pages (" + completed + "/" + topResults.length + ")...");
+                
+                if (completed === topResults.length) {
+                    finalizeSearch(index, query, fetchedContent, otherResults);
+                }
+            });
+        });
+    }
+
+    function fetchUrl(url, callback) {
+        var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
+        proc.command = ["curl", "-sL", "-m", "10", url];
+        var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
+        proc.stdout = collector;
+        
+        collector.streamFinished.connect(function() {
+            var html = collector.text;
+            if (html.trim() === "") {
+                callback("[Empty response]");
+                proc.destroy();
+                return;
+            }
+            
+            var parseProc = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
+            parseProc.command = ["node", "src/htmlToText.js"];
+            parseProc.stdinEnabled = true;
+            
+            var parseCollector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', parseProc);
+            parseProc.stdout = parseCollector;
+            
+            parseCollector.streamFinished.connect(function() {
+                callback(parseCollector.text.trim());
+                parseProc.destroy();
+            });
+            
+            parseProc.running = true;
+            parseProc.write(html);
+            parseProc.stdinEnabled = false; // This closes stdin
+            
+            proc.destroy();
+        });
+        proc.running = true;
+    }
+
+    function finalizeSearch(index, query, fetched, others) {
+        var toolResultText = "Search results for: " + query + "\n\n";
+        
+        fetched.forEach((f, i) => {
+            toolResultText += "Source [" + (i+1) + "]: " + f.title + " (" + f.url + ")\n";
+            toolResultText += "Content excerpt: " + f.content.substring(0, 1000) + "...\n\n";
+        });
+        
+        if (others.length > 0) {
+            toolResultText += "Other relevant links:\n";
+            others.forEach(o => {
+                toolResultText += "- " + o.title + ": " + o.url + "\n";
+            });
+        }
+
+        chatModel.setProperty(index, "toolOutput", truncateOutput(toolResultText));
+        chatModel.setProperty(index, "toolStatus", "done");
+
+        if (settings.summarizeSearch && fetched.length > 0) {
+            summarizeSearch(index, query, fetched, toolResultText);
+        } else {
+            finishToolCall(index, toolResultText);
+        }
+    }
+
+    function summarizeSearch(index, query, fetched, rawResults) {
+        chatModel.setProperty(index, "toolStatus", "summarizing...");
+        
+        var prompt = "The user searched for: " + query + "\n\nHere are the contents of the first 3 results:\n\n";
+        fetched.forEach((f, i) => {
+            prompt += "Source [" + (i+1) + "]: " + f.title + "\nURL: " + f.url + "\nContent:\n" + f.content + "\n\n---\n\n";
+        });
+        prompt += "Please extract the most relevant excerpts and information from these results that answer the search query. Be concise but thorough.";
+
+        var messages = [
+            { role: "system", content: "You are a research assistant. Extract relevant information from provided search results." },
+            { role: "user", content: prompt }
+        ];
+
+        var handler = function(content) {
+            backgroundApiClient.responseReceived.disconnect(handler);
+            chatModel.setProperty(index, "toolStatus", "summarized");
+            var finalResult = "### Search Summary for: " + query + "\n\n" + content + "\n\n### Raw Sources\n" + rawResults.split("Other relevant links:")[0];
+            if (rawResults.includes("Other relevant links:")) {
+                finalResult += "\n### Other Links\n" + rawResults.split("Other relevant links:")[1];
+            }
+            finishToolCall(index, finalResult);
+        };
+        
+        backgroundApiClient.responseReceived.connect(handler);
+        
+        backgroundApiClient.sendMessage(
+            settings.apiEndpoint,
+            settings.apiKey,
+            config.modelName,
+            messages,
+            false,
+            0.3
+        );
+    }
+
+    function executeGetPage(index, url, prompt) {
+        chatModel.setProperty(index, "toolName", "getpage");
+        chatModel.setProperty(index, "toolInput", "\"" + url + "\", \"" + prompt + "\"");
+        chatModel.setProperty(index, "toolStatus", "fetching page...");
+        
+        fetchUrl(url, function(content) {
+            chatModel.setProperty(index, "toolStatus", "extracting information...");
+            
+            var messages = [
+                { role: "system", content: "You are an assistant that extracts specific information from a webpage." },
+                { role: "user", content: "Page Content:\n" + content + "\n\nTask: " + prompt }
+            ];
+            
+            var handler = function(resContent) {
+                backgroundApiClient.responseReceived.disconnect(handler);
+                chatModel.setProperty(index, "toolStatus", "done");
+                chatModel.setProperty(index, "toolOutput", truncateOutput(resContent));
+                finishToolCall(index, "Information extracted from " + url + " using prompt \"" + prompt + "\":\n\n" + resContent);
+            };
+            
+            backgroundApiClient.responseReceived.connect(handler);
+            
+            backgroundApiClient.sendMessage(
+                settings.apiEndpoint,
+                settings.apiKey,
+                config.modelName,
+                messages,
+                false,
+                0.3
+            );
+        });
+    }
+
+    function finishToolCall(index, resultText) {
+        root.isLoading = true;
+        
+        root.messageHistory = [...root.messageHistory, { role: "user", content: "TOOL RESULT:\n\n" + resultText }];
+        
+        var cleanedHistory = stripReasoningFromHistory(root.messageHistory);
+        apiClient.sendMessage(
+            settings.apiEndpoint,
+            settings.apiKey,
+            config.modelName,
+            cleanedHistory,
+            config.enableStreaming,
+            config.temperature
+        );
+    }
+
     Settings {
         id: settings
         // Using a direct file location to avoid organizationName requirements
@@ -207,11 +467,13 @@ PanelWindow {
         property string savedSessions: "[]"
         property string lastModel: ""
         property string lastSessionId: ""
-        property string personas: '[{"id":"default","name":"Assistant","system":"You are a helpful assistant. System Info:\\n- OS: {os}\\n- Kernel: {kernel}\\n- DE: {de}\\n- User: {user}\\n- Host: {hostname}\\n- Time: {date time}","personality":""}]'
+        property string personas: '[{"id":"default","name":"Assistant","system":"You are a helpful assistant. System Info:\\n- OS: {os}\\n- Kernel: {kernel}\\n- DE: {de}\\n- User: {user}\\n- Host: {hostname}\\n- Time: {date time}\\n\\n# Tool Use\\nYou can call tools by outputting tool[\\\"(tool_name)\\\", \\\"input1\\\", \\\"input2\\\"].\\nThe tool call MUST be at the end of your response.\\n\\nAvailable tools:\\n- tool[\\\"search\\\", \\\"query\\\"]: Searches the web using SearXNG. Returns top results and text from the first 3.\\n- tool[\\\"getpage\\\", \\\"url\\\", \\\"prompt\\\"]: Fetches a URL and uses a separate model to extract info based on the prompt.","personality":""}]'
         property string currentPersonaId: "default"
         property string apiEndpoint: "http://localhost:11434/v1"
         property string apiKey: "wawa"
         property real temperature: 0.7
+        property string searxngUrl: "http://localhost:8080"
+        property bool summarizeSearch: true
     }
     
     onCurrentPersonaChanged: {
@@ -314,7 +576,11 @@ PanelWindow {
                     chatModel.append({
                         sender: msg.role === "user" ? "You" : "AI",
                         message: displayContent,
-                        thinking: ""
+                        thinking: "",
+                        toolName: "",
+                        toolInput: "",
+                        toolOutput: "",
+                        toolStatus: ""
                     });
                 }
             });
@@ -341,6 +607,8 @@ PanelWindow {
         config.apiEndpoint = settings.apiEndpoint;
         config.apiKey = settings.apiKey;
         config.temperature = settings.temperature;
+        config.searxngUrl = settings.searxngUrl;
+        config.summarizeSearch = settings.summarizeSearch;
 
         if (settings.lastModel !== "") {
             config.modelName = settings.lastModel;
@@ -350,9 +618,21 @@ PanelWindow {
         try {
             var ps = JSON.parse(settings.personas);
             var defP = ps.find(p => p.id === "default");
-            if (defP && (defP.system === "You are a helpful assistant." || !defP.system.includes("{os}"))) {
-                defP.system = "You are a helpful assistant. System Info:\n- OS: {os}\n- Kernel: {kernel}\n- DE: {de}\n- User: {user}\n- Host: {hostname}\n- Time: {date time}";
-                settings.personas = JSON.stringify(ps);
+            var toolInfo = "\n\n# Tool Use\nYou can call tools by outputting tool[\\\"(tool_name)\\\", \\\"input1\\\", \\\"input2\\\"].\\nThe tool call MUST be at the end of your response.\\n\\nAvailable tools:\\n- tool[\\\"search\\\", \\\"query\\\"]: Searches the web using SearXNG. Returns top results and text from the first 3.\\n- tool[\\\"getpage\\\", \\\"url\\\", \\\"prompt\\\"]: Fetches a URL and uses a separate model to extract info based on the prompt.";
+            
+            if (defP) {
+                var changed = false;
+                if (defP.system === "You are a helpful assistant." || !defP.system.includes("{os}")) {
+                    defP.system = "You are a helpful assistant. System Info:\n- OS: {os}\n- Kernel: {kernel}\n- DE: {de}\n- User: {user}\n- Host: {hostname}\n- Time: {date time}";
+                    changed = true;
+                }
+                if (!defP.system.includes("tool[\"(tool_name)\"]") && !defP.system.includes("tool[\"search\", \"query\"]")) {
+                    defP.system += toolInfo;
+                    changed = true;
+                }
+                if (changed) {
+                    settings.personas = JSON.stringify(ps);
+                }
             }
         } catch(e) {
             console.error("Failed to migrate default persona:", e);
@@ -851,6 +1131,35 @@ PanelWindow {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 5
+                            Text { text: "SearXNG URL"; color: "#c5c5c5"; font.family: "Monospace"; font.pixelSize: 12 }
+                            TextField {
+                                Layout.fillWidth: true
+                                text: settings.searxngUrl
+                                placeholderText: "http://localhost:8080"
+                                color: "#c5c5c5"
+                                font.family: "Monospace"
+                                background: Rectangle { color: "#222222"; border.color: "#404040" }
+                                onTextChanged: {
+                                    settings.searxngUrl = text;
+                                    config.searxngUrl = text;
+                                }
+                            }
+                        }
+
+                        CheckBox {
+                            text: "Summarize Search Results"
+                            checked: settings.summarizeSearch
+                            background: Rectangle { color: "#222222"; border.color: "#404040" }
+                            contentItem: Text { text: "Summarize Search Results"; color: "#c5c5c5"; font.family: "Monospace"; leftPadding: 25 }
+                            onCheckedChanged: {
+                                settings.summarizeSearch = checked;
+                                config.summarizeSearch = checked;
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 5
                             Text {
                                 text: "Temperature: " + settings.temperature.toFixed(1)
                                 color: "#c5c5c5"
@@ -1002,7 +1311,10 @@ PanelWindow {
                             Layout.fillWidth: true
                             background: Rectangle { color: parent.hovered ? "#333333" : "#222222"; border.color: "#404040" }
                             contentItem: Text { text: parent.text; color: "#c5c5c5"; font.family: "Monospace"; horizontalAlignment: Text.AlignHCenter }
-                            onClicked: addPersonaPopup.open()
+                            onClicked: {
+                                newPersonaSystem.text = "You are a helpful assistant. System Info:\\n- OS: {os}\\n- Kernel: {kernel}\\n- DE: {de}\\n- User: {user}\\n- Host: {hostname}\\n- Time: {date time}\\n\\n# Tool Use\\nYou can call tools by outputting tool[\\\"(tool_name)\\\", \\\"input1\\\", \\\"input2\\\"].\\nThe tool call MUST be at the end of your response.\\n\\nAvailable tools:\\n- tool[\\\"search\\\", \\\"query\\\"]: Searches the web using SearXNG. Returns top results and text from the first 3.\\n- tool[\\\"getpage\\\", \\\"url\\\", \\\"prompt\\\"]: Fetches a URL and uses a separate model to extract info based on the prompt.";
+                                addPersonaPopup.open();
+                            }
                         }
                     }
                 }
@@ -1028,79 +1340,109 @@ PanelWindow {
         padding: 20
         background: Rectangle { color: "#1A1A1A"; border.color: "#404040" }
 
-        ColumnLayout {
+        ScrollView {
+            id: addPersonaScrollView
             anchors.fill: parent
-            spacing: 15
+            clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
-            Text { text: "Add New Persona"; color: "#c5c5c5"; font.family: "Monospace"; font.pixelSize: 16 }
+            ColumnLayout {
+                width: addPersonaScrollView.availableWidth
+                spacing: 15
 
-            TextField {
-                id: newPersonaName
-                Layout.fillWidth: true
-                placeholderText: "Name"
-                color: "#c5c5c5"
-                placeholderTextColor: "#808080"
-                font.family: "Monospace"
-                background: Rectangle { color: "#222222"; border.color: "#404040" }
-            }
-
-            TextArea {
-                id: newPersonaSystem
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                placeholderText: "System Prompt"
-                color: "#c5c5c5"
-                placeholderTextColor: "#808080"
-                font.family: "Monospace"
-                wrapMode: Text.WordWrap
-                background: Rectangle { color: "#222222"; border.color: "#404040" }
-            }
-
-            TextArea {
-                id: newPersonaPersonality
-                Layout.fillWidth: true
-                Layout.preferredHeight: 100
-                placeholderText: "Personality Prompt (Optional)"
-                color: "#c5c5c5"
-                placeholderTextColor: "#808080"
-                font.family: "Monospace"
-                wrapMode: Text.WordWrap
-                background: Rectangle { color: "#222222"; border.color: "#404040" }
-            }
-
-            RowLayout {
-                Layout.alignment: Qt.AlignRight
-                spacing: 10
-                Button {
-                    text: "Cancel"
-                    background: Rectangle { color: parent.hovered ? "#333333" : "#222222"; border.color: "#404040" }
-                    contentItem: Text { text: parent.text; color: "#c5c5c5"; font.family: "Monospace"; horizontalAlignment: Text.AlignHCenter }
-                    onClicked: addPersonaPopup.close()
+                Text {
+                    text: "Add New Persona"
+                    color: "#c5c5c5"
+                    font.family: "Monospace"
+                    font.pixelSize: 16
+                    Layout.fillWidth: true
                 }
-                Button {
-                    text: "Save"
-                    background: Rectangle { color: parent.hovered ? "#333333" : "#222222"; border.color: "#404040" }
-                    contentItem: Text { text: parent.text; color: "#c5c5c5"; font.family: "Monospace"; horizontalAlignment: Text.AlignHCenter }
-                    onClicked: {
-                        if (newPersonaName.text !== "") {
-                            var ps = JSON.parse(settings.personas);
-                            var newP = {
-                                id: generateId(),
-                                name: newPersonaName.text,
-                                system: newPersonaSystem.text,
-                                personality: newPersonaPersonality.text
-                            };
-                            ps.push(newP);
-                            settings.personas = JSON.stringify(ps);
 
-                            // Refresh model
-                            personasModel.clear();
-                            ps.forEach(p => personasModel.append(p));
+                TextField {
+                    id: newPersonaName
+                    Layout.fillWidth: true
+                    placeholderText: "Name"
+                    color: "#c5c5c5"
+                    placeholderTextColor: "#808080"
+                    font.family: "Monospace"
+                    background: Rectangle { color: "#222222"; border.color: "#404040" }
+                }
 
-                            newPersonaName.text = "";
-                            newPersonaSystem.text = "";
-                            newPersonaPersonality.text = "";
-                            addPersonaPopup.close();
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 200
+                    color: "#222222"
+                    border.color: "#404040"
+                    ScrollView {
+                        anchors.fill: parent
+                        TextArea {
+                            id: newPersonaSystem
+                            padding: 10
+                            placeholderText: "System Prompt"
+                            color: "#c5c5c5"
+                            placeholderTextColor: "#808080"
+                            font.family: "Monospace"
+                            wrapMode: Text.WordWrap
+                            background: null
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 100
+                    color: "#222222"
+                    border.color: "#404040"
+                    ScrollView {
+                        anchors.fill: parent
+                        TextArea {
+                            id: newPersonaPersonality
+                            padding: 10
+                            placeholderText: "Personality Prompt (Optional)"
+                            color: "#c5c5c5"
+                            placeholderTextColor: "#808080"
+                            font.family: "Monospace"
+                            wrapMode: Text.WordWrap
+                            background: null
+                        }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Item { Layout.fillWidth: true }
+                    Button {
+                        text: "Cancel"
+                        background: Rectangle { color: parent.hovered ? "#333333" : "#222222"; border.color: "#404040" }
+                        contentItem: Text { text: parent.text; color: "#c5c5c5"; font.family: "Monospace"; horizontalAlignment: Text.AlignHCenter }
+                        onClicked: addPersonaPopup.close()
+                    }
+                    Button {
+                        text: "Save"
+                        background: Rectangle { color: parent.hovered ? "#333333" : "#222222"; border.color: "#404040" }
+                        contentItem: Text { text: parent.text; color: "#c5c5c5"; font.family: "Monospace"; horizontalAlignment: Text.AlignHCenter }
+                        onClicked: {
+                            if (newPersonaName.text !== "") {
+                                var ps = JSON.parse(settings.personas);
+                                var newP = {
+                                    id: generateId(),
+                                    name: newPersonaName.text,
+                                    system: newPersonaSystem.text,
+                                    personality: newPersonaPersonality.text
+                                };
+                                ps.push(newP);
+                                settings.personas = JSON.stringify(ps);
+
+                                // Refresh model
+                                personasModel.clear();
+                                ps.forEach(p => personasModel.append(p));
+
+                                newPersonaName.text = "";
+                                newPersonaSystem.text = "";
+                                newPersonaPersonality.text = "";
+                                addPersonaPopup.close();
+                            }
                         }
                     }
                 }
@@ -1120,81 +1462,111 @@ PanelWindow {
 
         property string editingId: ""
 
-        ColumnLayout {
+        ScrollView {
+            id: editPersonaScrollView
             anchors.fill: parent
-            spacing: 15
+            clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
-            Text { text: "Edit Persona"; color: "#c5c5c5"; font.family: "Monospace"; font.pixelSize: 16 }
+            ColumnLayout {
+                width: editPersonaScrollView.availableWidth
+                spacing: 15
 
-            TextField {
-                id: editPersonaName
-                Layout.fillWidth: true
-                placeholderText: "Name"
-                color: "#c5c5c5"
-                placeholderTextColor: "#808080"
-                font.family: "Monospace"
-                background: Rectangle { color: "#222222"; border.color: "#404040" }
-            }
-
-            TextArea {
-                id: editPersonaSystem
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                placeholderText: "System Prompt"
-                color: "#c5c5c5"
-                placeholderTextColor: "#808080"
-                font.family: "Monospace"
-                wrapMode: Text.WordWrap
-                background: Rectangle { color: "#222222"; border.color: "#404040" }
-            }
-
-            TextArea {
-                id: editPersonaPersonality
-                Layout.fillWidth: true
-                Layout.preferredHeight: 100
-                placeholderText: "Personality Prompt (Optional)"
-                color: "#c5c5c5"
-                placeholderTextColor: "#808080"
-                font.family: "Monospace"
-                wrapMode: Text.WordWrap
-                background: Rectangle { color: "#222222"; border.color: "#404040" }
-            }
-
-            RowLayout {
-                Layout.alignment: Qt.AlignRight
-                spacing: 10
-                Button {
-                    text: "Cancel"
-                    background: Rectangle { color: parent.hovered ? "#333333" : "#222222"; border.color: "#404040" }
-                    contentItem: Text { text: parent.text; color: "#c5c5c5"; font.family: "Monospace"; horizontalAlignment: Text.AlignHCenter }
-                    onClicked: editPersonaPopup.close()
+                Text {
+                    text: "Edit Persona"
+                    color: "#c5c5c5"
+                    font.family: "Monospace"
+                    font.pixelSize: 16
+                    Layout.fillWidth: true
                 }
-                Button {
-                    text: "Save"
-                    background: Rectangle { color: parent.hovered ? "#333333" : "#222222"; border.color: "#404040" }
-                    contentItem: Text { text: parent.text; color: "#c5c5c5"; font.family: "Monospace"; horizontalAlignment: Text.AlignHCenter }
-                    onClicked: {
-                        if (editPersonaName.text !== "") {
-                            var ps = JSON.parse(settings.personas);
-                            var idx = ps.findIndex(p => p.id === editPersonaPopup.editingId);
-                            if (idx !== -1) {
-                                ps[idx].name = editPersonaName.text;
-                                ps[idx].system = editPersonaSystem.text;
-                                ps[idx].personality = editPersonaPersonality.text;
-                                settings.personas = JSON.stringify(ps);
 
-                                // Refresh currentPersona if it was the one edited
-                                if (settings.currentPersonaId === editPersonaPopup.editingId) {
-                                    var temp = settings.currentPersonaId;
-                                    settings.currentPersonaId = "";
-                                    settings.currentPersonaId = temp;
+                TextField {
+                    id: editPersonaName
+                    Layout.fillWidth: true
+                    placeholderText: "Name"
+                    color: "#c5c5c5"
+                    placeholderTextColor: "#808080"
+                    font.family: "Monospace"
+                    background: Rectangle { color: "#222222"; border.color: "#404040" }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 200
+                    color: "#222222"
+                    border.color: "#404040"
+                    ScrollView {
+                        anchors.fill: parent
+                        TextArea {
+                            id: editPersonaSystem
+                            padding: 10
+                            placeholderText: "System Prompt"
+                            color: "#c5c5c5"
+                            placeholderTextColor: "#808080"
+                            font.family: "Monospace"
+                            wrapMode: Text.WordWrap
+                            background: null
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 100
+                    color: "#222222"
+                    border.color: "#404040"
+                    ScrollView {
+                        anchors.fill: parent
+                        TextArea {
+                            id: editPersonaPersonality
+                            padding: 10
+                            placeholderText: "Personality Prompt (Optional)"
+                            color: "#c5c5c5"
+                            placeholderTextColor: "#808080"
+                            font.family: "Monospace"
+                            wrapMode: Text.WordWrap
+                            background: null
+                        }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Item { Layout.fillWidth: true }
+                    Button {
+                        text: "Cancel"
+                        background: Rectangle { color: parent.hovered ? "#333333" : "#222222"; border.color: "#404040" }
+                        contentItem: Text { text: parent.text; color: "#c5c5c5"; font.family: "Monospace"; horizontalAlignment: Text.AlignHCenter }
+                        onClicked: editPersonaPopup.close()
+                    }
+                    Button {
+                        text: "Save"
+                        background: Rectangle { color: parent.hovered ? "#333333" : "#222222"; border.color: "#404040" }
+                        contentItem: Text { text: parent.text; color: "#c5c5c5"; font.family: "Monospace"; horizontalAlignment: Text.AlignHCenter }
+                        onClicked: {
+                            if (editPersonaName.text !== "") {
+                                var ps = JSON.parse(settings.personas);
+                                var idx = ps.findIndex(p => p.id === editPersonaPopup.editingId);
+                                if (idx !== -1) {
+                                    ps[idx].name = editPersonaName.text;
+                                    ps[idx].system = editPersonaSystem.text;
+                                    ps[idx].personality = editPersonaPersonality.text;
+                                    settings.personas = JSON.stringify(ps);
+
+                                    // Refresh currentPersona if it was the one edited
+                                    if (settings.currentPersonaId === editPersonaPopup.editingId) {
+                                        var temp = settings.currentPersonaId;
+                                        settings.currentPersonaId = "";
+                                        settings.currentPersonaId = temp;
+                                    }
+
+                                    // Refresh model
+                                    personasModel.clear();
+                                    ps.forEach(p => personasModel.append(p));
+
+                                    editPersonaPopup.close();
                                 }
-
-                                // Refresh model
-                                personasModel.clear();
-                                ps.forEach(p => personasModel.append(p));
-
-                                editPersonaPopup.close();
                             }
                         }
                     }
@@ -1411,6 +1783,63 @@ PanelWindow {
                                     wrapMode: Text.WordWrap
                                     selectByMouse: true
                                     readOnly: true
+                                }
+                            }
+                            
+                            // Tool box for AI
+                            RetroFrame {
+                                id: toolFrame
+                                Layout.fillWidth: true
+                                visible: (toolName || "") !== ""
+                                title: "tool"
+                                borderColor: "#4A90E2"
+                                property bool collapsed: false
+                                stickyScroll: chatView
+                                
+                                rightElement: Image {
+                                    source: "dropdown.svg"
+                                    sourceSize: Qt.size(14, 16)
+                                    width: 14
+                                    height: 16
+                                    rotation: toolFrame.collapsed ? -90 : 0
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: toolFrame.collapsed = !toolFrame.collapsed
+                                    }
+                                }
+                                
+                                ColumnLayout {
+                                    width: parent.width
+                                    visible: !toolFrame.collapsed
+                                    spacing: 5
+                                    
+                                    Text {
+                                        text: "<b>Call:</b> " + toolName + "[" + toolInput + "]"
+                                        color: "#c5c5c5"
+                                        font.family: "Monospace"
+                                        font.pixelSize: 12
+                                        textFormat: Text.RichText
+                                    }
+                                    
+                                    Text {
+                                        text: "<b>Status:</b> " + toolStatus
+                                        color: "#808080"
+                                        font.family: "Monospace"
+                                        font.pixelSize: 10
+                                        textFormat: Text.RichText
+                                    }
+
+                                    TextEdit {
+                                        Layout.fillWidth: true
+                                        text: toolOutput
+                                        color: "#808080"
+                                        font.family: "Monospace"
+                                        font.pixelSize: 12
+                                        wrapMode: Text.WordWrap
+                                        selectByMouse: true
+                                        readOnly: true
+                                        visible: toolOutput !== ""
+                                    }
                                 }
                             }
                             
@@ -1671,9 +2100,13 @@ PanelWindow {
                                 var displayMessage = text;
 
                                 chatModel.append({
-                                    sender: "You",
-                                    message: displayMessage,
-                                    thinking: ""
+                                   sender: "You",
+                                   message: displayMessage,
+                                   thinking: "",
+                                   toolName: "",
+                                   toolInput: "",
+                                   toolOutput: "",
+                                   toolStatus: ""
                                 });
 
                                 // Prepare for API

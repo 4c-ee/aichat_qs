@@ -8,7 +8,8 @@ QtObject {
     property string modelName: "gemini-3.5-flash"
     property real temperature: 0.7
     property bool enableStreaming: true
-
+    property string searxngUrl: "http://localhost:8080"
+    property bool summarizeSearch: true
     // UI Configuration
     property color backgroundColor: "#000000"
     property color accentColor: "#c5c5c5"

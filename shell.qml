@@ -7,12 +7,13 @@ ShellRoot {
     MainPanel {
         id: mainPanel
     }
-    
+
     IpcHandler {
-        target: "chat"
-        
-        function toggle(): void {
+        function toggle() {
             mainPanel.opened = !mainPanel.opened;
         }
+
+        target: "chat"
     }
+
 }
