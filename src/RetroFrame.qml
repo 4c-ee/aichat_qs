@@ -10,6 +10,7 @@ Item {
     property Item rightElement: null
     property real titlePadding: 10
     property Flickable stickyScroll: null
+    property var config: null
     
     readonly property real stickyY: {
         if (!stickyScroll || !stickyScroll.contentItem) return 0;
@@ -80,7 +81,7 @@ Item {
             anchors.centerIn: parent
             text: root.title
             color: root.borderColor
-            font.family: "Monospace"
+            font.family: root.config ? root.config.fontFamily : "Monospace"
             font.pixelSize: 12
         }
     }

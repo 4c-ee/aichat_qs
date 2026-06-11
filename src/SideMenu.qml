@@ -10,6 +10,7 @@ Item {
     property string currentSessionId
     property var settings
     property var sessionsModel
+    property var config
 
     // Signals to communicate with parent
     signal loadSessionRequested(string id)
@@ -61,7 +62,7 @@ Item {
             Text {
                 text: "Chat History"
                 color: "#c5c5c5"
-                font.family: "Monospace"
+                font.family: root.config.fontFamily
                 font.pixelSize: 18
                 Layout.alignment: Qt.AlignHCenter
             }
@@ -82,7 +83,7 @@ Item {
                         Text {
                             text: title
                             color: root.currentSessionId === id ? "#FFFFFF" : "#c5c5c5"
-                            font.family: "Monospace"
+                            font.family: root.config.fontFamily
                             font.pixelSize: 14
                             Layout.fillWidth: true
                             elide: Text.ElideRight
@@ -141,7 +142,7 @@ Item {
                 contentItem: Text {
                     text: parent.text
                     color: "#c5c5c5"
-                    font.family: "Monospace"
+                    font.family: root.config.fontFamily
                     horizontalAlignment: Text.AlignHCenter
                 }
             }

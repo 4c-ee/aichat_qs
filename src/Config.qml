@@ -14,4 +14,5 @@ QtObject {
     property color backgroundColor: "#000000"
     property color accentColor: "#c5c5c5"
     property int panelWidth: 500 // Increased width for better terminal feel
+    property string fontFamily: "Monospace"
 }

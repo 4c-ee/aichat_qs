@@ -542,6 +542,7 @@ PanelWindow {
     SideMenu {
         id: sideMenu
         settings: settings
+        config: config
         currentSessionId: root.currentSessionId
         sessionsModel: sessionsModel
 
@@ -583,7 +584,7 @@ PanelWindow {
                 contentItem: Text {
                     text: name
                     color: "#c5c5c5"
-                    font.family: "Monospace"
+                    font.family: config.fontFamily
                     font.pixelSize: 12
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -650,6 +651,7 @@ PanelWindow {
                 sideMenuOpen: sideMenu.isOpen
                 settings: settings
                 sideMenu: sideMenu
+                config: config
 
                 onNewChatRequested: root.createNewSession()
                 onSettingsRequested: settingsPopup.open()

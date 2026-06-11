@@ -4,8 +4,10 @@ import QtQuick.Controls
 TextField {
     id: root
 
+    property var config: null
+
     color: "#c5c5c5"
-    font.family: "Monospace"
+    font.family: root.config ? root.config.fontFamily : "Monospace"
     placeholderTextColor: "#808080"
 
     background: Rectangle {

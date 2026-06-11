@@ -31,6 +31,7 @@ ListView {
             Layout.fillWidth: true
             title: sender === "You" ? "user" : "ai"
             borderColor: sender === "You" ? "#c5c5c5" : "#c5c5c5"
+            config: root.config
 
             rightElement: Item {
                 implicitWidth: sender === "You" ? 16 : (modelNameText.implicitWidth + 20)
@@ -48,7 +49,7 @@ ListView {
                     visible: sender !== "You"
                     text: root.config.modelName
                     color: "#c5c5c5"
-                    font.family: "Monospace"
+                    font.family: root.config.fontFamily
                     font.pixelSize: 12
                     anchors.centerIn: parent
                 }
@@ -69,6 +70,7 @@ ListView {
                     borderColor: "#808080"
                     property bool collapsed: false
                     stickyScroll: root
+                    config: root.config
 
                     rightElement: Image {
                         source: "dropdown.svg"
@@ -89,7 +91,7 @@ ListView {
                         text: root.formatMessageFn(thinking)
                         textFormat: Text.RichText
                         color: "#808080"
-                        font.family: "Monospace"
+                        font.family: root.config.fontFamily
                         font.pixelSize: 12
                         wrapMode: Text.WordWrap
                         selectByMouse: true
@@ -106,6 +108,7 @@ ListView {
                     borderColor: "#4A90E2"
                     property bool collapsed: false
                     stickyScroll: root
+                    config: root.config
 
                     rightElement: Image {
                         source: "dropdown.svg"
@@ -127,7 +130,7 @@ ListView {
                         Text {
                             text: "<b>Call:</b> " + toolName + "[" + toolInput + "]"
                             color: "#c5c5c5"
-                            font.family: "Monospace"
+                            font.family: root.config.fontFamily
                             font.pixelSize: 12
                             textFormat: Text.RichText
                         }
@@ -135,7 +138,7 @@ ListView {
                         Text {
                             text: "<b>Status:</b> " + toolStatus
                             color: "#808080"
-                            font.family: "Monospace"
+                            font.family: root.config.fontFamily
                             font.pixelSize: 10
                             textFormat: Text.RichText
                         }
@@ -144,7 +147,7 @@ ListView {
                             Layout.fillWidth: true
                             text: toolOutput
                             color: "#808080"
-                            font.family: "Monospace"
+                            font.family: root.config.fontFamily
                             font.pixelSize: 12
                             wrapMode: Text.WordWrap
                             selectByMouse: true
@@ -159,7 +162,7 @@ ListView {
                     text: sender === "AI" ? root.formatMessageFn(message) : message
                     textFormat: sender === "AI" ? Text.RichText : Text.PlainText
                     color: "#c5c5c5"
-                    font.family: "Monospace"
+                    font.family: root.config.fontFamily
                     font.pixelSize: 14
                     wrapMode: Text.WordWrap
                     visible: message !== ""

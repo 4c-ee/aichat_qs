@@ -56,7 +56,7 @@ ColumnLayout {
                         anchors.centerIn: parent
                         text: "FILE"
                         color: "#808080"
-                        font.family: "Monospace"
+                        font.family: root.config.fontFamily
                         font.pixelSize: 8
                         visible: !modelData.match(/\.(jpg|jpeg|png|gif|webp)$/i)
                     }
@@ -88,7 +88,7 @@ ColumnLayout {
                 placeholderText: "type your message..."
                 color: "#c5c5c5"
                 placeholderTextColor: "#808080"
-                font.family: "Monospace"
+                font.family: root.config.fontFamily
                 font.pixelSize: 14
                 enabled: !root.isLoading
                 wrapMode: Text.WordWrap
@@ -159,7 +159,7 @@ ColumnLayout {
                     id: modelPickerText
                     text: root.config.modelName
                     color: "#c5c5c5"
-                    font.family: "Monospace"
+                    font.family: root.config.fontFamily
                     font.pixelSize: 14
                     anchors.centerIn: parent
                 }
@@ -195,7 +195,7 @@ ColumnLayout {
                 anchors.centerIn: parent
                 text: root.isLoading ? "■" : "→|"
                 color: root.isLoading || inputField.text.trim() !== "" || root.attachments.length > 0 ? "#c5c5c5" : "#404040"
-                font.family: "Monospace"
+                font.family: root.config.fontFamily
                 font.pixelSize: root.isLoading ? 24 : 20
             }
 

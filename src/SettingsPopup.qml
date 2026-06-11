@@ -42,7 +42,7 @@ Popup {
         Text {
             text: "Settings"
             color: "#c5c5c5"
-            font.family: "Monospace"
+            font.family: root.config.fontFamily
             font.pixelSize: 20
             Layout.alignment: Qt.AlignHCenter
         }
@@ -63,16 +63,17 @@ Popup {
                     Layout.fillWidth: true
                     spacing: 10
 
-                    Text { text: "CONFIGURATION"; color: "#808080"; font.family: "Monospace"; font.pixelSize: 12 }
+                    Text { text: "CONFIGURATION"; color: "#808080"; font.family: root.config.fontFamily; font.pixelSize: 12 }
 
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 5
-                        Text { text: "API Endpoint"; color: "#c5c5c5"; font.family: "Monospace"; font.pixelSize: 12 }
+                        Text { text: "API Endpoint"; color: "#c5c5c5"; font.family: root.config.fontFamily; font.pixelSize: 12 }
                         StyledTextField {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 250
                             text: root.settings.apiEndpoint
+                            config: root.config
                             placeholderText: "http://..."
                             onTextChanged: {
                                 root.settings.apiEndpoint = text;
@@ -84,7 +85,7 @@ Popup {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 5
-                        Text { text: "API Key"; color: "#c5c5c5"; font.family: "Monospace"; font.pixelSize: 12 }
+                        Text { text: "API Key"; color: "#c5c5c5"; font.family: root.config.fontFamily; font.pixelSize: 12 }
                         RowLayout {
                             Layout.fillWidth: true
                             StyledTextField {
@@ -92,6 +93,7 @@ Popup {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 200
                                 text: root.settings.apiKey
+                                config: root.config
                                 echoMode: showApiKey.checked ? TextInput.Normal : TextInput.Password
                                 onTextChanged: {
                                     root.settings.apiKey = text;
@@ -102,7 +104,7 @@ Popup {
                                 id: showApiKey
                                 text: "Show"
                                 background: Rectangle { color: "#222222"; border.color: "#404040" }
-                                contentItem: Text { text: "Show"; color: "#c5c5c5"; font.family: "Monospace"; leftPadding: 25 }
+                                contentItem: Text { text: "Show"; color: "#c5c5c5"; font.family: root.config.fontFamily; leftPadding: 25 }
                             }
                         }
                     }
@@ -110,10 +112,11 @@ Popup {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 5
-                        Text { text: "SearXNG URL"; color: "#c5c5c5"; font.family: "Monospace"; font.pixelSize: 12 }
+                        Text { text: "SearXNG URL"; color: "#c5c5c5"; font.family: root.config.fontFamily; font.pixelSize: 12 }
                         StyledTextField {
                             Layout.fillWidth: true
                             text: root.settings.searxngUrl
+                            config: root.config
                             placeholderText: "http://localhost:8080"
                             onTextChanged: {
                                 root.settings.searxngUrl = text;
@@ -126,7 +129,7 @@ Popup {
                         text: "Summarize Search Results"
                         checked: root.settings.summarizeSearch
                         background: Rectangle { color: "#222222"; border.color: "#404040" }
-                        contentItem: Text { text: "Summarize Search Results"; color: "#c5c5c5"; font.family: "Monospace"; leftPadding: 25 }
+                        contentItem: Text { text: "Summarize Search Results"; color: "#c5c5c5"; font.family: root.config.fontFamily; leftPadding: 25 }
                         onCheckedChanged: {
                             root.settings.summarizeSearch = checked;
                             root.config.summarizeSearch = checked;
@@ -139,7 +142,7 @@ Popup {
                         Text {
                             text: "Temperature: " + root.settings.temperature.toFixed(1)
                             color: "#c5c5c5"
-                            font.family: "Monospace"
+                            font.family: root.config.fontFamily
                             font.pixelSize: 12
                         }
                         RowLayout {
@@ -199,7 +202,7 @@ Popup {
                     Layout.fillWidth: true
                     spacing: 10
 
-                    Text { text: "PERSONAS"; color: "#808080"; font.family: "Monospace"; font.pixelSize: 12 }
+                    Text { text: "PERSONAS"; color: "#808080"; font.family: root.config.fontFamily; font.pixelSize: 12 }
 
                     ListView {
                         id: personasListView
@@ -223,7 +226,7 @@ Popup {
                                 Text {
                                     text: name
                                     color: "#FFFFFF"
-                                    font.family: "Monospace"
+                                    font.family: root.config.fontFamily
                                     font.pixelSize: 14
                                     Layout.fillWidth: true
                                 }
@@ -231,7 +234,7 @@ Popup {
                                 Text {
                                     text: "System: " + system.substring(0, 50) + (system.length > 50 ? "..." : "")
                                     color: "#808080"
-                                    font.family: "Monospace"
+                                    font.family: root.config.fontFamily
                                     font.pixelSize: 10
                                     wrapMode: Text.WordWrap
                                     Layout.fillWidth: true
@@ -316,7 +319,7 @@ Popup {
                 Text {
                     text: "Add New Persona"
                     color: "#c5c5c5"
-                    font.family: "Monospace"
+                    font.family: root.config.fontFamily
                     font.pixelSize: 16
                     Layout.fillWidth: true
                 }
@@ -324,6 +327,7 @@ Popup {
                 StyledTextField {
                     id: newPersonaName
                     Layout.fillWidth: true
+                    config: root.config
                     placeholderText: "Name"
                 }
 
@@ -340,7 +344,7 @@ Popup {
                             placeholderText: "System Prompt"
                             color: "#c5c5c5"
                             placeholderTextColor: "#808080"
-                            font.family: "Monospace"
+                            font.family: root.config.fontFamily
                             wrapMode: Text.WordWrap
                             background: null
                         }
@@ -360,7 +364,7 @@ Popup {
                             placeholderText: "Personality Prompt (Optional)"
                             color: "#c5c5c5"
                             placeholderTextColor: "#808080"
-                            font.family: "Monospace"
+                            font.family: root.config.fontFamily
                             wrapMode: Text.WordWrap
                             background: null
                         }
@@ -427,7 +431,7 @@ Popup {
                 Text {
                     text: "Edit Persona"
                     color: "#c5c5c5"
-                    font.family: "Monospace"
+                    font.family: root.config.fontFamily
                     font.pixelSize: 16
                     Layout.fillWidth: true
                 }
@@ -435,6 +439,7 @@ Popup {
                 StyledTextField {
                     id: editPersonaName
                     Layout.fillWidth: true
+                    config: root.config
                     placeholderText: "Name"
                 }
 
@@ -451,7 +456,7 @@ Popup {
                             placeholderText: "System Prompt"
                             color: "#c5c5c5"
                             placeholderTextColor: "#808080"
-                            font.family: "Monospace"
+                            font.family: root.config.fontFamily
                             wrapMode: Text.WordWrap
                             background: null
                         }
@@ -471,7 +476,7 @@ Popup {
                             placeholderText: "Personality Prompt (Optional)"
                             color: "#c5c5c5"
                             placeholderTextColor: "#808080"
-                            font.family: "Monospace"
+                            font.family: root.config.fontFamily
                             wrapMode: Text.WordWrap
                             background: null
                         }

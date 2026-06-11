@@ -9,6 +9,7 @@ RowLayout {
     property bool sideMenuOpen
     property var settings
     property var sideMenu
+    property var config
 
     signal newChatRequested()
     signal settingsRequested()
@@ -60,7 +61,7 @@ RowLayout {
     Text {
         text: root.currentPersona.name
         color: "#808080"
-        font.family: "Monospace"
+        font.family: root.config.fontFamily
         font.pixelSize: 12
         Layout.alignment: Qt.AlignVCenter
     }
