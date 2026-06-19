@@ -39,7 +39,9 @@ PanelWindow {
                 toolStatus: ""
             });
             var lastIndex = chatModel.count - 1;
-            root.messageHistory = [...root.messageHistory, { role: "assistant", content: response }];
+            var assistantMsg = { role: "assistant", content: response };
+            if (reasoning) assistantMsg.reasoning = reasoning;
+            root.messageHistory = [...root.messageHistory, assistantMsg];
             if (wasAtEnd) chatView.positionViewAtEnd();
 
             toolExecutor.checkForToolCall(lastIndex, response);
@@ -87,7 +89,9 @@ PanelWindow {
             if (chatModel.count > 0 && chatModel.get(chatModel.count - 1).sender === "AI") {
                 var lastIndex = chatModel.count - 1;
                 var lastItem = chatModel.get(lastIndex);
-                root.messageHistory = [...root.messageHistory, { role: "assistant", content: lastItem.message }];
+                var assistantMsg = { role: "assistant", content: lastItem.message };
+                if (lastItem.thinking) assistantMsg.reasoning = lastItem.thinking;
+                root.messageHistory = [...root.messageHistory, assistantMsg];
 
                 toolExecutor.checkForToolCall(lastIndex, lastItem.message);
             }
@@ -314,7 +318,7 @@ PanelWindow {
                     chatModel.append({
                         sender: msg.role === "user" ? "You" : "AI",
                         message: displayContent,
-                        thinking: "",
+                        thinking: msg.reasoning || "",
                         toolName: "",
                         toolInput: "",
                         toolOutput: "",
@@ -332,6 +336,7 @@ PanelWindow {
         root.messageHistory = session.history;
         chatModel.clear();
         sessionManager.saveCurrentSession(messageHistory);
+        updateSessionsModel();
     }
 
     function updateSessionsModel() {
@@ -385,6 +390,7 @@ PanelWindow {
 
     onMessageHistoryChanged: {
         sessionManager.saveCurrentSession(messageHistory);
+        updateSessionsModel();
     }
 
     onOpenedChanged: {
@@ -539,18 +545,6 @@ PanelWindow {
     ListModel { id: sessionsModel }
     ListModel { id: modelsModel }
 
-    SideMenu {
-        id: sideMenu
-        settings: settings
-        config: config
-        currentSessionId: root.currentSessionId
-        sessionsModel: sessionsModel
-
-        onLoadSessionRequested: (id) => root.loadSession(id)
-        onNewChatRequested: root.createNewSession()
-        onUpdateSessionsModelRequested: root.updateSessionsModel()
-    }
-
     SettingsPopup {
         id: settingsPopup
         settings: settings
@@ -682,6 +676,15 @@ PanelWindow {
 
                 onSendRequested: (text, attachments) => {
                     root.processAttachments(attachments, function(processedAttachments) {
+                        chatModel.append({
+                            sender: "You",
+                            message: text,
+                            thinking: "",
+                            toolName: "",
+                            toolInput: "",
+                            toolOutput: "",
+                            toolStatus: ""
+                        });
                         var userMessage = { role: "user", content: text };
                         if (processedAttachments.length > 0) {
                             userMessage.content = [
@@ -708,6 +711,18 @@ PanelWindow {
                     root.openModelPicker();
                 }
             }
+        }
+
+        SideMenu {
+            id: sideMenu
+            settings: settings
+            config: config
+            currentSessionId: root.currentSessionId
+            sessionsModel: sessionsModel
+
+            onLoadSessionRequested: (id) => root.loadSession(id)
+            onNewChatRequested: root.createNewSession()
+            onUpdateSessionsModelRequested: root.updateSessionsModel()
         }
     }
 }

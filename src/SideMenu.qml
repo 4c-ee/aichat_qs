@@ -48,10 +48,11 @@ Item {
             NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
         }
 
-        // Catch clicks on the menu itself
-        MouseArea {
-            anchors.fill: parent
-            onClicked: {}
+        Shortcut {
+            sequence: "Escape"
+            context: Qt.WindowShortcut
+            enabled: root.isOpen
+            onActivated: root.close()
         }
 
         ColumnLayout {
@@ -59,12 +60,49 @@ Item {
             anchors.margins: 15
             spacing: 15
 
-            Text {
-                text: "Chat History"
-                color: "#c5c5c5"
-                font.family: root.config.fontFamily
-                font.pixelSize: 18
+            RowLayout {
+                Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
+
+                Item {
+                    width: 28
+                    height: 28
+                    Layout.alignment: Qt.AlignLeft
+                    Rectangle {
+                        anchors.fill: parent
+                        color: closeMouseArea.containsMouse ? "#333333" : "transparent"
+                        Text {
+                            text: "×"
+                            color: "#c5c5c5"
+                            font.family: root.config.fontFamily
+                            font.pixelSize: 22
+                            anchors.centerIn: parent
+                        }
+                        MouseArea {
+                            id: closeMouseArea
+                            hoverEnabled: true
+                            anchors.fill: parent
+                            onClicked: root.close()
+                        }
+                    }
+                }
+
+                Item { Layout.fillWidth: true }
+
+                Text {
+                    text: "Chat History"
+                    color: "#c5c5c5"
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 18
+                    Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                }
+
+                Item { Layout.fillWidth: true }
+
+                Item {
+                    width: 28
+                    height: 28
+                }
             }
 
             ListView {
