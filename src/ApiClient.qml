@@ -13,7 +13,26 @@ Item {
     property int lastLineProcessed: 0
     property string requestId: ""
     property var activeXhr: null
+    property var activeModelsXhr: null
+    property int modelsRequestId: 0
+    property bool modelsRequestTimedOut: false
     property int lastExitCode: 0
+
+    Timer {
+        id: modelsTimeoutTimer
+        interval: 10000
+        repeat: false
+        onTriggered: {
+            if (!root.activeModelsXhr)
+                return;
+
+            root.modelsRequestTimedOut = true;
+            var timedOutXhr = root.activeModelsXhr;
+            root.activeModelsXhr = null;
+            timedOutXhr.abort();
+            root.modelsFailed("Models request timed out. Check the endpoint URL and protocol.");
+        }
+    }
 
     signal responseReceived(string content, string reasoning)
     signal responseChunk(string content)
@@ -21,6 +40,7 @@ Item {
     signal streamingFinished()
     signal errorOccurred(string error)
     signal modelsReceived(var models)
+    signal modelsFailed(string error)
 
     function extractModelIds(response) {
         var entries = [];
@@ -28,13 +48,15 @@ Item {
         function appendEntries(value) {
             if (Array.isArray(value))
                 entries = entries.concat(value);
+            else if (value && typeof value === "object")
+                entries.push(value);
         }
 
         if (Array.isArray(response)) {
             appendEntries(response);
         } else if (response) {
-            // OpenAI-compatible endpoints use "data", while Ollama-style
-            // endpoints use "models". Some servers return both.
+            // OpenAI-compatible endpoints use "data", while llama-server and
+            // Ollama-style endpoints use "models". Some servers return both.
             appendEntries(response.data);
             appendEntries(response.models);
         }
@@ -46,6 +68,8 @@ Item {
                 modelId = entry;
             } else if (entry && typeof entry === "object") {
                 modelId = entry.id || entry.name || entry.model;
+                if (modelId && typeof modelId === "object")
+                    modelId = modelId.id || modelId.name || modelId.model;
             }
 
             if (modelId === undefined || modelId === null)
@@ -59,38 +83,135 @@ Item {
         return modelIds;
     }
 
-    function getModels(endpoint, apiKey) {
-        var trimmedEndpoint = endpoint.trim();
+    function normalizeEndpoint(endpoint) {
+        var trimmedEndpoint = (endpoint || "").trim();
         if (trimmedEndpoint.endsWith("/"))
             trimmedEndpoint = trimmedEndpoint.substring(0, trimmedEndpoint.length - 1);
+
+        if (!/^https?:\/\//i.test(trimmedEndpoint)) {
+            var isLocal = /^(localhost|127(?:\.\d{1,3}){3}|\[::1\])(?::|\/|$)/i.test(trimmedEndpoint);
+            trimmedEndpoint = (isLocal ? "http://" : "https://") + trimmedEndpoint;
+        }
 
         if (trimmedEndpoint.includes("googleapis.com") && trimmedEndpoint.startsWith("http://"))
             trimmedEndpoint = "https://" + trimmedEndpoint.substring(7);
 
-        var url = trimmedEndpoint + "/models";
-        var trimmedKey = apiKey ? apiKey.trim() : "";
-        console.log("Fetching models from:", url);
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", url, true);
-        xhr.setRequestHeader("Content-Type", "application/json");
-        if (trimmedKey !== "")
-            xhr.setRequestHeader("Authorization", "Bearer " + trimmedKey);
+        return trimmedEndpoint;
+    }
 
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
+    function modelUrls(endpoint) {
+        var trimmedEndpoint = root.normalizeEndpoint(endpoint);
+        var urls = [];
+        if (trimmedEndpoint.endsWith("/models")) {
+            urls.push(trimmedEndpoint);
+            return urls;
+        }
+
+        urls.push(trimmedEndpoint + "/models");
+
+        // llama-server exposes its native model list at /models, while some
+        // OpenAI-compatible configurations point at /v1. Try the native path
+        // as a fallback when the OpenAI-style path is not available.
+        if (trimmedEndpoint.endsWith("/v1")) {
+            var baseEndpoint = trimmedEndpoint.substring(0, trimmedEndpoint.length - 3).replace(/\/+$/, "");
+            if (baseEndpoint !== "")
+                urls.push(baseEndpoint + "/models");
+        }
+
+        return urls;
+    }
+
+    function getModels(endpoint, apiKey) {
+        root.modelsRequestId += 1;
+        var requestId = root.modelsRequestId;
+        root.modelsRequestTimedOut = false;
+        modelsTimeoutTimer.stop();
+        if (!endpoint || endpoint.trim() === "") {
+            root.modelsFailed("API endpoint is empty.");
+            return;
+        }
+        if (root.activeModelsXhr) {
+            root.activeModelsXhr.abort();
+            root.activeModelsXhr = null;
+        }
+
+        var urls = root.modelUrls(endpoint);
+        var urlIndex = 0;
+        var trimmedKey = apiKey ? apiKey.trim() : "";
+
+        function requestNext() {
+            if (requestId !== root.modelsRequestId)
+                return;
+
+            if (urlIndex >= urls.length) {
+                root.modelsFailed("No models endpoint was found.");
+                return;
+            }
+
+            var url = urls[urlIndex++];
+            console.log("Fetching models from:", url);
+            var xhr = new XMLHttpRequest();
+            root.activeModelsXhr = xhr;
+            var requestFinished = false;
+
+            xhr.open("GET", url, true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            if (trimmedKey !== "")
+                xhr.setRequestHeader("Authorization", "Bearer " + trimmedKey);
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState !== XMLHttpRequest.DONE || requestFinished)
+                    return;
+
+                requestFinished = true;
+                if (requestId !== root.modelsRequestId)
+                    return;
+
+                root.activeModelsXhr = null;
+                modelsTimeoutTimer.stop();
+                if (root.modelsRequestTimedOut)
+                    return;
+
                 if (xhr.status === 200) {
                     try {
                         var response = JSON.parse(xhr.responseText);
                         root.modelsReceived(root.extractModelIds(response));
                     } catch (e) {
                         console.error("Failed to parse models:", e);
+                        root.modelsFailed("Failed to parse the models response: " + e.message);
                     }
+                } else if (xhr.status === 404 && urlIndex < urls.length) {
+                    requestNext();
                 } else {
                     console.error("Models request failed with status:", xhr.status, xhr.responseText);
+                    root.modelsFailed("Models request failed (" + xhr.status + ").");
                 }
-            }
-        };
-        xhr.send();
+            };
+
+            xhr.onerror = function() {
+                if (requestFinished)
+                    return;
+
+                requestFinished = true;
+                if (requestId !== root.modelsRequestId)
+                    return;
+
+                root.activeModelsXhr = null;
+                modelsTimeoutTimer.stop();
+                if (root.modelsRequestTimedOut)
+                    return;
+
+                if (urlIndex < urls.length)
+                    requestNext();
+                else
+                    root.modelsFailed("Could not connect to the models endpoint.");
+            };
+
+            modelsTimeoutTimer.restart();
+            xhr.send();
+        }
+
+        requestNext();
     }
 
     function sendMessage(endpoint, apiKey, model, messages, stream = false, temperature = null) {
@@ -101,14 +222,7 @@ Item {
         streamAborted = false;
         isStreaming = stream;
         lastLineProcessed = 0;
-        var trimmedEndpoint = endpoint.trim();
-        if (trimmedEndpoint.endsWith("/"))
-            trimmedEndpoint = trimmedEndpoint.substring(0, trimmedEndpoint.length - 1);
-
-        var isGoogle = trimmedEndpoint.includes("googleapis.com");
-        if (isGoogle && trimmedEndpoint.startsWith("http://"))
-            trimmedEndpoint = "https://" + trimmedEndpoint.substring(7);
-
+        var trimmedEndpoint = root.normalizeEndpoint(endpoint);
         var url = trimmedEndpoint + "/chat/completions";
         var trimmedKey = apiKey ? apiKey.trim() : "";
         var requestBody = {

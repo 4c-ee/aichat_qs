@@ -66,6 +66,24 @@ function formatMessage(text) {
     return formatted;
 }
 
+// Remove the prompt instructions used by the legacy, text-based tool system.
+// The implementation is intentionally kept in the repository so it can be
+// replaced by an official OpenAI-compatible tools implementation later.
+function stripLegacyToolInstructions(text) {
+    if (!text) return "";
+
+    var legacyToolSection = /\n\n# Tool Use\nYou can call tools by outputting tool\["\(tool_name\)", "input1", "input2"\]\.\nThe tool call MUST be at the end of your response\.\n\nAvailable tools:\n- tool\["search", "query"\]:[^\n]*\n- tool\["getpage", "url", "prompt"\]:[^\n]*/g;
+    return String(text).replace(legacyToolSection, "").replace(/\s+$/, "");
+}
+
+// Remove a trailing legacy tool invocation from an assistant message.
+function stripLegacyToolCall(text) {
+    if (!text) return "";
+
+    var legacyToolCall = /\n*tool\["([^"]+)"(?:,\s*"([^"]*)")?(?:,\s*"([^"]*)")?\]\s*$/;
+    return String(text).replace(legacyToolCall, "").replace(/\s+$/, "");
+}
+
 function stripReasoningFromHistory(history) {
     var cleaned = [];
     for (var i = 0; i < history.length; i++) {

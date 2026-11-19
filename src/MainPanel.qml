@@ -28,16 +28,25 @@ PanelWindow {
         id: apiClient
         onModelsReceived: (models) => {
             modelsModel.clear();
-            models.forEach(m => modelsModel.append({name: m}));
+            models.forEach(modelId => modelsModel.append({
+                modelId: modelId,
+                displayName: modelId
+            }));
             root.cachedModelsList = models;
-            root.cachedModelsEndpoint = settings.apiEndpoint;
-            root.cachedModelsKey = settings.apiKey;
+            root.cachedModelsEndpoint = settings.apiEndpoint.trim();
+            root.cachedModelsKey = settings.apiKey.trim();
+            root.modelsFetched = true;
+            root.modelPickerStatus = models.length === 0 ? "No models returned by this endpoint." : "";
+        }
+        onModelsFailed: (error) => {
+            root.modelsFetched = false;
+            root.modelPickerStatus = error;
         }
         onResponseReceived: (response, reasoning) => {
             root.isLoading = false;
             var wasAtEnd = chatView.atYEnd;
             chatModel.append({
-                sender: "AI",
+                sender: "ai",
                 message: response,
                 thinking: reasoning || "",
                 toolName: "",
@@ -45,23 +54,20 @@ PanelWindow {
                 toolOutput: "",
                 toolStatus: ""
             });
-            var lastIndex = chatModel.count - 1;
             var assistantMsg = { role: "assistant", content: response };
             if (reasoning) assistantMsg.reasoning = reasoning;
             root.messageHistory = [...root.messageHistory, assistantMsg];
             if (wasAtEnd) chatView.positionViewAtEnd();
-
-            toolExecutor.checkForToolCall(lastIndex, response);
         }
         onResponseChunk: (chunk) => {
             var wasAtEnd = chatView.atYEnd;
-            if (chatModel.count > 0 && chatModel.get(chatModel.count - 1).sender === "AI") {
+            if (chatModel.count > 0 && chatModel.get(chatModel.count - 1).sender === "ai") {
                 var lastIndex = chatModel.count - 1;
                 var lastItem = chatModel.get(lastIndex);
                 chatModel.setProperty(lastIndex, "message", lastItem.message + chunk);
             } else {
                 chatModel.append({
-                    sender: "AI",
+                    sender: "ai",
                     message: chunk,
                     thinking: "",
                     toolName: "",
@@ -74,13 +80,13 @@ PanelWindow {
         }
         onThinkingChunk: (chunk) => {
             var wasAtEnd = chatView.atYEnd;
-            if (chatModel.count > 0 && chatModel.get(chatModel.count - 1).sender === "AI") {
+            if (chatModel.count > 0 && chatModel.get(chatModel.count - 1).sender === "ai") {
                 var lastIndex = chatModel.count - 1;
                 var lastItem = chatModel.get(lastIndex);
                 chatModel.setProperty(lastIndex, "thinking", (lastItem.thinking || "") + chunk);
             } else {
-                    chatModel.append({
-                    sender: "AI",
+                chatModel.append({
+                    sender: "ai",
                     message: "",
                     thinking: chunk,
                     toolName: "",
@@ -93,21 +99,19 @@ PanelWindow {
         }
         onStreamingFinished: {
             root.isLoading = false;
-            if (chatModel.count > 0 && chatModel.get(chatModel.count - 1).sender === "AI") {
+            if (chatModel.count > 0 && chatModel.get(chatModel.count - 1).sender === "ai") {
                 var lastIndex = chatModel.count - 1;
                 var lastItem = chatModel.get(lastIndex);
                 var assistantMsg = { role: "assistant", content: lastItem.message };
                 if (lastItem.thinking) assistantMsg.reasoning = lastItem.thinking;
                 root.messageHistory = [...root.messageHistory, assistantMsg];
-
-                toolExecutor.checkForToolCall(lastIndex, lastItem.message);
             }
         }
         onErrorOccurred: (error) => {
             root.isLoading = false;
             var wasAtEnd = chatView.atYEnd;
             chatModel.append({
-                sender: "System",
+                sender: "system",
                 message: "Error: " + error,
                 toolName: "",
                 toolInput: "",
@@ -122,26 +126,14 @@ PanelWindow {
         id: backgroundApiClient
     }
 
+    // The legacy custom-tool implementation is retained for later replacement,
+    // but it is intentionally disconnected from response handling and prompts.
     ToolExecutor {
         id: toolExecutor
         chatModel: chatModel
         settings: settings
         config: config
         backgroundApiClient: backgroundApiClient
-
-        onToolCallFinished: (index, resultText) => {
-            root.isLoading = true;
-            root.messageHistory = [...root.messageHistory, { role: "user", content: "TOOL RESULT:\n\n" + resultText }];
-            var cleanedHistory = MessageFormatter.stripReasoningFromHistory(root.messageHistory);
-            apiClient.sendMessage(
-                settings.apiEndpoint,
-                settings.apiKey,
-                config.modelName,
-                cleanedHistory,
-                config.enableStreaming,
-                config.temperature
-            );
-        }
     }
 
     anchors {
@@ -175,6 +167,8 @@ PanelWindow {
     property string cachedModelsEndpoint: ""
     property string cachedModelsKey: ""
     property var cachedModelsList: []
+    property bool modelsFetched: false
+    property string modelPickerStatus: ""
 
     function openSettings() {
         settingsPanelRequested();
@@ -187,8 +181,14 @@ PanelWindow {
         }
 
         modelPickerPopup.open();
-        if (root.cachedModelsEndpoint !== settings.apiEndpoint || root.cachedModelsKey !== settings.apiKey || root.cachedModelsList.length === 0) {
-            apiClient.getModels(settings.apiEndpoint, settings.apiKey);
+        var endpoint = settings.apiEndpoint.trim();
+        var key = settings.apiKey.trim();
+        if (root.cachedModelsEndpoint !== endpoint || root.cachedModelsKey !== key || !root.modelsFetched) {
+            modelsModel.clear();
+            root.cachedModelsList = [];
+            root.modelsFetched = false;
+            root.modelPickerStatus = "Loading models...";
+            apiClient.getModels(endpoint, key);
         } else {
             console.log("Using cached models list");
         }
@@ -225,7 +225,45 @@ PanelWindow {
                    .replace(/\{desktop\}/gi, deVal)
                    .replace(/\{kernel\}/gi, kernelVal);
 
-        return text;
+        return MessageFormatter.stripLegacyToolInstructions(text);
+    }
+
+    // Remove data produced by the disconnected legacy text-tool protocol from
+    // histories that were saved before the protocol was unhooked.
+    function sanitizeLegacyToolHistory(history) {
+        var cleaned = [];
+        if (!history) return cleaned;
+
+        history.forEach(function(msg) {
+            if (!msg) return;
+
+            if (msg.role === "system") {
+                cleaned.push({
+                    role: "system",
+                    content: MessageFormatter.stripLegacyToolInstructions(msg.content)
+                });
+                return;
+            }
+
+            if (msg.role === "assistant" && typeof msg.content === "string") {
+                var assistantContent = MessageFormatter.stripLegacyToolCall(msg.content);
+                if (assistantContent === "") return;
+
+                var assistantMessage = { role: "assistant", content: assistantContent };
+                if (msg.reasoning) assistantMessage.reasoning = msg.reasoning;
+                cleaned.push(assistantMessage);
+                return;
+            }
+
+            if (msg.role === "user" && typeof msg.content === "string"
+                    && msg.content.indexOf("TOOL RESULT:") === 0) {
+                return;
+            }
+
+            cleaned.push(msg);
+        });
+
+        return cleaned;
     }
 
     function fetchSystemInfo() {
@@ -292,7 +330,7 @@ PanelWindow {
         property string savedSessions: "[]"
         property string lastModel: ""
         property string lastSessionId: ""
-        property string personas: '[{"id":"default","name":"Assistant","system":"You are a helpful assistant. System Info:\\n- OS: {os}\\n- Kernel: {kernel}\\n- DE: {de}\\n- User: {user}\\n- Host: {hostname}\\n- Time: {date time}\\n\\n# Tool Use\\nYou can call tools by outputting tool[\\\"(tool_name)\\\", \\\"input1\\\", \\\"input2\\\"].\\nThe tool call MUST be at the end of your response.\\n\\nAvailable tools:\\n- tool[\\\"search\\\", \\\"query\\\"]: Searches the web using SearXNG. Returns top results and text from the first 3.\\n- tool[\\\"getpage\\\", \\\"url\\\", \\\"prompt\\\"]: Fetches a URL and uses a separate model to extract info based on the prompt.","personality":""}]'
+        property string personas: '[{"id":"default","name":"Assistant","system":"You are a helpful assistant. System Info:\\n- OS: {os}\\n- Kernel: {kernel}\\n- DE: {de}\\n- User: {user}\\n- Host: {hostname}\\n- Time: {date time}","personality":""}]'
         property string currentPersonaId: "default"
         property string apiEndpoint: "http://localhost:11434/v1"
         property string apiKey: "wawa"
@@ -322,7 +360,8 @@ PanelWindow {
         if (session) {
             currentSessionId = id;
             settings.lastSessionId = id;
-            root.messageHistory = session.history;
+            var sanitizedHistory = root.sanitizeLegacyToolHistory(session.history);
+            root.messageHistory = sanitizedHistory;
 
             if (session.modelName) {
                 config.modelName = session.modelName;
@@ -336,12 +375,12 @@ PanelWindow {
             }
 
             chatModel.clear();
-            session.history.forEach(msg => {
+            sanitizedHistory.forEach(msg => {
                 if (msg.role !== "system") {
                     var displayContent = MessageFormatter.contentToString(msg.content);
 
                     chatModel.append({
-                        sender: msg.role === "user" ? "You" : "AI",
+                        sender: msg.role === "user" ? "you" : "ai",
                         message: displayContent,
                         thinking: msg.reasoning || "",
                         toolName: "",
@@ -382,26 +421,37 @@ PanelWindow {
         }
 
         try {
+            // Remove legacy text-tool instructions from saved personas without
+            // deleting the rest of a user's prompt.
             var ps = JSON.parse(settings.personas);
-            var defP = ps.find(p => p.id === "default");
-            var toolInfo = "\n\n# Tool Use\nYou can call tools by outputting tool[\\\"(tool_name)\\\", \\\"input1\\\", \\\"input2\\\"].\nThe tool call MUST be at the end of your response.\n\nAvailable tools:\\n- tool[\\\"search\\\", \\\"query\\\"]: Searches the web using SearXNG. Returns top results and text from the first 3.\\n- tool[\\\"getpage\\\", \\\"url\\\", \\\"prompt\\\"]: Fetches a URL and uses a separate model to extract info based on the prompt.";
+            var personasChanged = false;
+            ps.forEach(function(persona) {
+                var sanitizedPrompt = MessageFormatter.stripLegacyToolInstructions(persona.system || "");
+                if (sanitizedPrompt !== persona.system) {
+                    persona.system = sanitizedPrompt;
+                    personasChanged = true;
+                }
+            });
+            if (personasChanged) {
+                settings.personas = JSON.stringify(ps);
+            }
 
-            if (defP) {
-                var changed = false;
-                if (defP.system === "You are a helpful assistant." || !defP.system.includes("{os}")) {
-                    defP.system = "You are a helpful assistant. System Info:\n- OS: {os}\n- Kernel: {kernel}\n- DE: {de}\n- User: {user}\n- Host: {hostname}\n- Time: {date time}";
-                    changed = true;
+            // Clean old chat histories as well, so disconnected tool output is
+            // not sent back to the endpoint as prompt context.
+            var sessions = JSON.parse(settings.savedSessions);
+            var sessionsChanged = false;
+            sessions.forEach(function(session) {
+                var sanitizedHistory = root.sanitizeLegacyToolHistory(session.history);
+                if (JSON.stringify(sanitizedHistory) !== JSON.stringify(session.history)) {
+                    session.history = sanitizedHistory;
+                    sessionsChanged = true;
                 }
-                if (!defP.system.includes("tool[\"(tool_name)\"]") && !defP.system.includes("tool[\"search\", \"query\"]")) {
-                    defP.system += toolInfo;
-                    changed = true;
-                }
-                if (changed) {
-                    settings.personas = JSON.stringify(ps);
-                }
+            });
+            if (sessionsChanged) {
+                settings.savedSessions = JSON.stringify(sessions);
             }
         } catch(e) {
-            console.error("Failed to migrate default persona:", e);
+            console.error("Failed to migrate legacy tool data:", e);
         }
 
         updateSessionsModel();
@@ -576,7 +626,7 @@ PanelWindow {
         x: 0
         y: -height - 6
         width: Math.min(300, root.implicitWidth - 32)
-        height: Math.min(400, modelsModel.count * 38 + 12)
+        height: Math.min(400, Math.max(76, modelsModel.count * 38 + (root.modelPickerStatus !== "" ? 48 : 12)))
         padding: 6
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
 
@@ -587,36 +637,56 @@ PanelWindow {
             border.width: 1
         }
 
-        contentItem: ListView {
-            model: modelsModel
-            clip: true
-            spacing: 3
+        contentItem: ColumnLayout {
+            spacing: 4
 
-            delegate: ItemDelegate {
-                id: modelDelegate
-                width: parent.width
-                height: 35
-                padding: 10
+            Text {
+                Layout.fillWidth: true
+                visible: root.modelPickerStatus !== ""
+                text: root.modelPickerStatus
+                color: config.dangerColor
+                font.family: config.fontFamily
+                font.pixelSize: 12
+                wrapMode: Text.WordWrap
+            }
 
-                contentItem: Text {
-                    text: model.name
-                    color: modelDelegate.highlighted ? config.accent1Hover : config.textMain
-                    font.family: config.fontFamily
-                    font.pixelSize: 13
-                    font.weight: modelDelegate.highlighted ? Font.DemiBold : Font.Normal
-                    verticalAlignment: Text.AlignVCenter
-                    elide: Text.ElideRight
-                }
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                model: modelsModel
+                clip: true
+                spacing: 3
 
-                background: Rectangle {
-                    radius: config.controlRadius
-                    color: modelDelegate.hovered ? config.accent1Hover : "transparent"
-                }
+                delegate: ItemDelegate {
+                    id: modelDelegate
+                    width: ListView.view.width
+                    height: 35
+                    padding: 10
 
-                onClicked: {
-                    config.modelName = model.name;
-                    settings.lastModel = model.name;
-                    modelPickerPopup.close();
+                    contentItem: Text {
+                        text: model.displayName
+                        color: modelDelegate.highlighted
+                            ? config.accent1Hover
+                            : (model.modelId === config.modelName ? config.accent1 : config.textMain)
+                        font.family: config.fontFamily
+                        font.pixelSize: 13
+                        font.weight: modelDelegate.highlighted || model.modelId === config.modelName
+                            ? Font.DemiBold
+                            : Font.Normal
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                    }
+
+                    background: Rectangle {
+                        radius: config.controlRadius
+                        color: modelDelegate.hovered ? config.accent1Hover : "transparent"
+                    }
+
+                    onClicked: {
+                        config.modelName = model.modelId;
+                        settings.lastModel = model.modelId;
+                        modelPickerPopup.close();
+                    }
                 }
             }
         }
@@ -711,7 +781,7 @@ PanelWindow {
                     onSendRequested: (text, attachments) => {
                         root.processAttachments(attachments, function(processedAttachments) {
                             chatModel.append({
-                                sender: "You",
+                                sender: "you",
                                 message: text,
                                 thinking: "",
                                 toolName: "",

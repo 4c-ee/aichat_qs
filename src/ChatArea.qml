@@ -287,7 +287,7 @@ ListView {
         // Non-AI system messages (for example API errors)
         Rectangle {
             Layout.fillWidth: true
-            visible: model.sender !== "you" && model.sender !== "ai"
+            visible: model.sender === "system"
             implicitHeight: systemColumn.implicitHeight + 30
             radius: root.config.cardRadius
             color: root.config.surfaceColor
@@ -301,7 +301,7 @@ ListView {
                 spacing: 5
 
                 Text {
-                    text: model.sender === "System" ? "System" : model.sender
+                    text: "System"
                     color: root.config.textMuted
                     font.family: root.config.fontFamily
                     font.pixelSize: 14
