@@ -93,7 +93,7 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "Chat history"
+                    text: "chat history"
                     color: root.config.textMain
                     font.family: root.config.fontFamily
                     font.pixelSize: 21
@@ -101,22 +101,13 @@ Item {
                 }
 
                 RetroButton {
-                    text: "+ New"
+                    text: "+ new"
                     config: root.config
                     onClicked: {
                         root.newChatRequested();
                         root.close();
                     }
                 }
-            }
-
-            Text {
-                text: "RECENT CONVERSATIONS"
-                color: root.config.textMuted
-                font.family: root.config.fontFamily
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-                font.letterSpacing: 0.8
             }
 
             ListView {

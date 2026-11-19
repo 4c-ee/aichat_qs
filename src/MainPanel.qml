@@ -181,6 +181,11 @@ PanelWindow {
     }
 
     function openModelPicker() {
+        if (modelPickerPopup.opened) {
+            modelPickerPopup.close();
+            return;
+        }
+
         modelPickerPopup.open();
         if (root.cachedModelsEndpoint !== settings.apiEndpoint || root.cachedModelsKey !== settings.apiKey || root.cachedModelsList.length === 0) {
             apiClient.getModels(settings.apiEndpoint, settings.apiKey);
@@ -567,12 +572,13 @@ PanelWindow {
 
     Popup {
         id: modelPickerPopup
-        x: 16
-        y: Math.max(16, parent.height - height - 145)
-        width: Math.min(300, parent.width - 32)
+        parent: inputArea.modelPickerButton
+        x: 0
+        y: -height - 6
+        width: Math.min(300, root.implicitWidth - 32)
         height: Math.min(400, modelsModel.count * 38 + 12)
         padding: 6
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
 
         background: Rectangle {
             radius: config.controlRadius
@@ -593,7 +599,7 @@ PanelWindow {
                 padding: 10
 
                 contentItem: Text {
-                    text: modelDelegate.model.name
+                    text: model.name
                     color: modelDelegate.highlighted ? config.accent1Hover : config.textMain
                     font.family: config.fontFamily
                     font.pixelSize: 13
@@ -608,8 +614,8 @@ PanelWindow {
                 }
 
                 onClicked: {
-                    config.modelName = modelDelegate.model.name;
-                    settings.lastModel = modelDelegate.model.name;
+                    config.modelName = model.name;
+                    settings.lastModel = model.name;
                     modelPickerPopup.close();
                 }
             }

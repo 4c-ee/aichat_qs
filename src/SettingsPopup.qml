@@ -51,18 +51,11 @@ Popup {
                 spacing: 0
 
                 Text {
-                    text: "Settings"
+                    text: "settings"
                     color: root.config.textMain
                     font.family: root.config.fontFamily
                     font.pixelSize: 23
                     font.weight: Font.DemiBold
-                }
-
-                Text {
-                    text: "Connection, model behavior, and personas"
-                    color: root.config.textMuted
-                    font.family: root.config.fontFamily
-                    font.pixelSize: 12
                 }
             }
 
@@ -104,7 +97,7 @@ Popup {
                 spacing: 16
 
                 Text {
-                    text: "CONFIGURATION"
+                    text: "configuration"
                     color: root.config.accent1
                     font.family: root.config.fontFamily
                     font.pixelSize: 11
@@ -131,7 +124,7 @@ Popup {
                             spacing: 6
 
                             Text {
-                                text: "API endpoint"
+                                text: "api endpoint"
                                 color: root.config.textMuted
                                 font.family: root.config.fontFamily
                                 font.pixelSize: 13
@@ -155,7 +148,7 @@ Popup {
                             spacing: 6
 
                             Text {
-                                text: "API key"
+                                text: "api key"
                                 color: root.config.textMuted
                                 font.family: root.config.fontFamily
                                 font.pixelSize: 13
@@ -220,7 +213,7 @@ Popup {
                             spacing: 6
 
                             Text {
-                                text: "SearXNG URL"
+                                text: "searxng url"
                                 color: root.config.textMuted
                                 font.family: root.config.fontFamily
                                 font.pixelSize: 13
@@ -241,7 +234,7 @@ Popup {
 
                         CheckBox {
                             id: summarizeSearch
-                            text: "Summarize search results"
+                            text: "summarize search results"
                             checked: root.settings.summarizeSearch
 
                             onCheckedChanged: {
@@ -288,7 +281,7 @@ Popup {
                                 Layout.fillWidth: true
 
                                 Text {
-                                    text: "Temperature"
+                                    text: "temperature"
                                     color: root.config.textMuted
                                     font.family: root.config.fontFamily
                                     font.pixelSize: 13
@@ -353,7 +346,7 @@ Popup {
                 }
 
                 Text {
-                    text: "PERSONAS"
+                    text: "personas"
                     color: root.config.accent1
                     font.family: root.config.fontFamily
                     font.pixelSize: 11
@@ -406,7 +399,7 @@ Popup {
 
                                     Text {
                                         anchors.centerIn: parent
-                                        text: "ACTIVE"
+                                        text: "active"
                                         color: root.config.accent1
                                         font.family: root.config.fontFamily
                                         font.pixelSize: 9
@@ -436,14 +429,14 @@ Popup {
                                 }
 
                                 RetroButton {
-                                    text: "Select"
+                                    text: "select"
                                     visible: root.settings.currentPersonaId !== model.id
                                     config: root.config
                                     onClicked: root.personaSelected(model.id)
                                 }
 
                                 RetroButton {
-                                    text: "Edit"
+                                    text: "edit"
                                     config: root.config
                                     onClicked: {
                                         editPersonaPopup.editingId = model.id;
@@ -455,7 +448,7 @@ Popup {
                                 }
 
                                 RetroButton {
-                                    text: "Delete"
+                                    text: "delete"
                                     visible: model.id !== "default"
                                     config: root.config
                                     onClicked: {
@@ -479,12 +472,12 @@ Popup {
                 }
 
                 RetroButton {
-                    text: "+ Add persona"
+                    text: "+ add persona"
                     Layout.fillWidth: true
                     config: root.config
                     onClicked: {
-                        newPersonaSystem.text = "You are a helpful assistant. System Info:\n- OS: {os}\n- Kernel: {kernel}\n- DE: {de}\n- User: {user}\n- Host: {hostname}\n- Time: {date time}\n\n# Tool Use\nYou can call tools by outputting tool[\"(tool_name)\", \"input1\", \"input2\"].\nThe tool call MUST be at the end of your response.\n\nAvailable tools:\n- tool[\"search\", \"query\"]: Searches the web using SearXNG. Returns top results and text from the first 3.\n- tool[\"getpage\", \"url\", \"prompt\"]: Fetches a URL and uses a separate model to extract info based on the prompt.";
-                        addPersonaPopup.open();
+                        newPersonaSystem.text = "You are a helpful assistant. System Info:\n- OS: {os}\n- Kernel: {kernel}\n- DE: {de}\n- User: {user}\n- Host: {hostname}\n- Time: {date time}";
+                      addPersonaPopup.open();
                     }
                 }
             }
@@ -508,7 +501,7 @@ Popup {
                 spacing: 13
 
                 Text {
-                    text: "Add persona"
+                    text: "add persona"
                     color: root.config.textMain
                     font.family: root.config.fontFamily
                     font.pixelSize: 19
@@ -523,7 +516,7 @@ Popup {
                 }
 
                 Text {
-                    text: "System prompt"
+                    text: "system prompt"
                     color: root.config.textMuted
                     font.family: root.config.fontFamily
                     font.pixelSize: 13
@@ -546,7 +539,7 @@ Popup {
                             id: newPersonaSystem
                             width: parent.width
                             padding: 7
-                            placeholderText: "System prompt"
+                            placeholderText: "system prompt"
                             color: root.config.textMain
                             placeholderTextColor: root.config.textMuted
                             selectionColor: root.config.accent2
@@ -559,7 +552,7 @@ Popup {
                 }
 
                 Text {
-                    text: "Personality prompt (optional)"
+                    text: "personality prompt (optional)"
                     color: root.config.textMuted
                     font.family: root.config.fontFamily
                     font.pixelSize: 13
@@ -582,7 +575,7 @@ Popup {
                             id: newPersonaPersonality
                             width: parent.width
                             padding: 7
-                            placeholderText: "Personality prompt"
+                            placeholderText: "personality prompt"
                             color: root.config.textMain
                             placeholderTextColor: root.config.textMuted
                             selectionColor: root.config.accent2
@@ -603,7 +596,7 @@ Popup {
                     }
 
                     RetroButton {
-                        text: "Cancel"
+                        text: "cancel"
                         config: root.config
                         onClicked: addPersonaPopup.close()
                     }
@@ -730,7 +723,7 @@ Popup {
                             id: editPersonaPersonality
                             width: parent.width
                             padding: 7
-                            placeholderText: "Personality prompt"
+                            placeholderText: "personality prompt"
                             color: root.config.textMain
                             placeholderTextColor: root.config.textMuted
                             selectionColor: root.config.accent2

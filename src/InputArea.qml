@@ -10,6 +10,7 @@ ColumnLayout {
     property bool isLoading
     property var attachments: []
     property var config
+    readonly property alias modelPickerButton: modelButton
 
     signal sendRequested(string text, var attachments)
     signal stopRequested()

@@ -28,7 +28,7 @@ ListView {
         // User prompt
         Rectangle {
             Layout.fillWidth: true
-            visible: model.sender === "You"
+            visible: model.sender === "you"
             implicitHeight: userColumn.implicitHeight + 30
             radius: root.config.cardRadius
             color: root.config.surfaceColor
@@ -43,7 +43,7 @@ ListView {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "You"
+                    text: "you"
                     color: root.config.textMuted
                     font.family: root.config.fontFamily
                     font.pixelSize: 14
@@ -66,7 +66,7 @@ ListView {
         Rectangle {
             id: thoughtCard
             Layout.fillWidth: true
-            visible: model.sender === "AI" && (model.thinking !== "" || model.toolName !== "" || (root.isLoading && model.message === ""))
+            visible: model.sender === "ai" && (model.thinking !== "" || model.toolName !== "" || (root.isLoading && model.message === ""))
             implicitHeight: thoughtColumn.implicitHeight + 28
             radius: root.config.cardRadius
             color: root.config.surfaceColor
@@ -247,7 +247,7 @@ ListView {
         // Assistant response
         Rectangle {
             Layout.fillWidth: true
-            visible: model.sender === "AI" && model.message !== ""
+            visible: model.sender === "ai" && model.message !== ""
             implicitHeight: responseColumn.implicitHeight + 30
             radius: root.config.cardRadius
             color: root.config.surfaceColor
@@ -287,7 +287,7 @@ ListView {
         // Non-AI system messages (for example API errors)
         Rectangle {
             Layout.fillWidth: true
-            visible: model.sender !== "You" && model.sender !== "AI"
+            visible: model.sender !== "you" && model.sender !== "ai"
             implicitHeight: systemColumn.implicitHeight + 30
             radius: root.config.cardRadius
             color: root.config.surfaceColor

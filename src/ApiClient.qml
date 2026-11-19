@@ -22,6 +22,43 @@ Item {
     signal errorOccurred(string error)
     signal modelsReceived(var models)
 
+    function extractModelIds(response) {
+        var entries = [];
+
+        function appendEntries(value) {
+            if (Array.isArray(value))
+                entries = entries.concat(value);
+        }
+
+        if (Array.isArray(response)) {
+            appendEntries(response);
+        } else if (response) {
+            // OpenAI-compatible endpoints use "data", while Ollama-style
+            // endpoints use "models". Some servers return both.
+            appendEntries(response.data);
+            appendEntries(response.models);
+        }
+
+        var modelIds = [];
+        entries.forEach(function(entry) {
+            var modelId;
+            if (typeof entry === "string") {
+                modelId = entry;
+            } else if (entry && typeof entry === "object") {
+                modelId = entry.id || entry.name || entry.model;
+            }
+
+            if (modelId === undefined || modelId === null)
+                return;
+
+            modelId = String(modelId).trim();
+            if (modelId !== "" && modelIds.indexOf(modelId) === -1)
+                modelIds.push(modelId);
+        });
+
+        return modelIds;
+    }
+
     function getModels(endpoint, apiKey) {
         var trimmedEndpoint = endpoint.trim();
         if (trimmedEndpoint.endsWith("/"))
@@ -44,20 +81,7 @@ Item {
                 if (xhr.status === 200) {
                     try {
                         var response = JSON.parse(xhr.responseText);
-                        var modelIds = [];
-                        if (response.data)
-                            modelIds = response.data.map((m) => {
-                            return m.id;
-                        });
-                        else if (Array.isArray(response))
-                            modelIds = response.map((m) => {
-                            return m.id || m.name || m;
-                        });
-                        else if (response.models)
-                            modelIds = response.models.map((m) => {
-                            return m.name || m.id || m;
-                        });
-                        root.modelsReceived(modelIds);
+                        root.modelsReceived(root.extractModelIds(response));
                     } catch (e) {
                         console.error("Failed to parse models:", e);
                     }

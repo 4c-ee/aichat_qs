@@ -21,7 +21,7 @@ QtObject {
 
         var sessions = JSON.parse(settings.savedSessions);
         var found = false;
-        var title = "New Chat";
+        var title = "new chat";
 
         for (var i = 0; i < messageHistory.length; i++) {
             if (messageHistory[i].role === "user") {
