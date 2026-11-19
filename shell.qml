@@ -4,11 +4,63 @@ import Quickshell.Io
 import "src"
 
 ShellRoot {
+    id: root
+
+    property bool panelTransitionActive: false
+    property bool closingPanel: false
+
+    function togglePanel() {
+        if (root.panelTransitionActive)
+            return;
+
+        root.panelTransitionActive = true;
+
+        if (mainPanel.opened) {
+            root.closingPanel = true;
+            if (!overlayPanel.prepareToClose())
+                mainPanel.opened = false;
+        } else {
+            root.closingPanel = false;
+            mainPanel.opened = true;
+        }
+    }
+
+    function openPanel() {
+        if (root.panelTransitionActive)
+            return false;
+
+        root.panelTransitionActive = true;
+        root.closingPanel = false;
+        mainPanel.opened = true;
+        return true;
+    }
+
+    function handleOverlayClosed() {
+        if (root.panelTransitionActive && root.closingPanel)
+            mainPanel.opened = false;
+    }
+
+    function handlePanelSlideFinished(opened) {
+        if (!root.panelTransitionActive)
+            return;
+
+        if (opened)
+            overlayPanel.restoreAfterPanelOpen();
+
+        root.panelTransitionActive = false;
+    }
+
     MainPanel {
         id: mainPanel
 
-        onSettingsPanelRequested: overlayPanel.openSettings()
-        onChatListPanelRequested: overlayPanel.openChatList()
+        onSettingsPanelRequested: {
+            if (!root.panelTransitionActive)
+                overlayPanel.openSettings();
+        }
+        onChatListPanelRequested: {
+            if (!root.panelTransitionActive)
+                overlayPanel.openChatList();
+        }
     }
 
     OverlayPanel {
@@ -18,19 +70,45 @@ ShellRoot {
         sessionsModel: mainPanel.sessionsModelValue
         generateIdFn: mainPanel.generateId
         currentSessionId: mainPanel.currentSessionId
+        panelOpened: mainPanel.opened
 
         onLoadSessionRequested: (id) => mainPanel.loadSession(id)
         onNewChatRequested: mainPanel.createNewSession()
         onUpdateSessionsModelRequested: mainPanel.updateSessionsModel()
     }
 
+    Connections {
+        target: mainPanel
+
+        function onSlideFinished(opened) {
+            root.handlePanelSlideFinished(opened);
+        }
+    }
+
+    Connections {
+        target: overlayPanel
+
+        function onActiveViewClosed() {
+            root.handleOverlayClosed();
+        }
+    }
+
     IpcHandler {
         function toggle() {
-            mainPanel.opened = !mainPanel.opened;
+            root.togglePanel();
         }
 
         function openSettings() {
-            mainPanel.openSettings();
+            if (root.panelTransitionActive)
+                return;
+
+            if (mainPanel.opened) {
+                overlayPanel.openSettings();
+                return;
+            }
+
+            if (root.openPanel())
+                overlayPanel.requestViewAfterPanelOpen("settings");
         }
 
         target: "chat"

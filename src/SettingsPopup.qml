@@ -9,6 +9,14 @@ Popup {
     property var config
     property var generateIdFn
 
+    property string draftApiEndpoint: ""
+    property string draftApiKey: ""
+    property string draftSearxngUrl: ""
+    property real draftTemperature: 0.7
+    property bool draftSummarizeSearch: true
+    property bool searxngExpanded: false
+    property string saveStatus: ""
+
     signal personaSelected(string id)
     signal personaEdited()
     signal personaDeleted()
@@ -24,9 +32,45 @@ Popup {
     closePolicy: Popup.CloseOnEscape
 
     onOpened: {
+        root.loadDraft();
         personasModel.clear();
         var parsedPersonas = JSON.parse(root.settings.personas);
         parsedPersonas.forEach(persona => personasModel.append(persona));
+    }
+
+    function loadDraft() {
+        root.draftApiEndpoint = root.settings.apiEndpoint || "";
+        root.draftApiKey = root.settings.apiKey || "";
+        root.draftSearxngUrl = root.settings.searxngUrl || "";
+        root.draftTemperature = Number(root.settings.temperature);
+        root.draftSummarizeSearch = root.settings.summarizeSearch;
+
+        apiEndpointField.text = root.draftApiEndpoint;
+        apiKeyField.text = root.draftApiKey;
+        searxngUrlField.text = root.draftSearxngUrl;
+        temperatureSlider.value = root.draftTemperature;
+        root.saveStatus = "";
+    }
+
+    function markDirty() {
+        root.saveStatus = "unsaved changes";
+    }
+
+    function saveSettings() {
+        root.settings.apiEndpoint = root.draftApiEndpoint.trim();
+        root.settings.apiKey = root.draftApiKey.trim();
+        root.settings.searxngUrl = root.draftSearxngUrl.trim();
+        root.settings.temperature = root.draftTemperature;
+        root.settings.summarizeSearch = root.draftSummarizeSearch;
+
+        root.config.apiEndpoint = root.settings.apiEndpoint;
+        root.config.apiKey = root.settings.apiKey;
+        root.config.searxngUrl = root.settings.searxngUrl;
+        root.config.temperature = root.settings.temperature;
+        root.config.summarizeSearch = root.settings.summarizeSearch;
+
+        root.saveStatus = "settings saved";
+        root.settingsUpdated();
     }
 
     background: Rectangle {
@@ -38,30 +82,29 @@ Popup {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 18
+        anchors.margins: root.config.outerMargin
         spacing: 14
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 42
+            Layout.preferredHeight: 44
             spacing: 12
 
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 0
+            Text {
+                text: "settings"
+                color: root.config.textMain
+                font.family: root.config.fontFamily
+                font.pixelSize: 23
+                font.weight: Font.DemiBold
+            }
 
-                Text {
-                    text: "settings"
-                    color: root.config.textMain
-                    font.family: root.config.fontFamily
-                    font.pixelSize: 23
-                    font.weight: Font.DemiBold
-                }
+            Item {
+                Layout.fillWidth: true
             }
 
             Rectangle {
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
+                Layout.preferredWidth: 44
+                Layout.preferredHeight: 44
                 radius: root.config.controlRadius
                 color: root.config.nestedSurfaceColor
                 border.color: root.config.outerBorderColor
@@ -132,13 +175,14 @@ Popup {
                             }
 
                             StyledTextField {
+                                id: apiEndpointField
                                 Layout.fillWidth: true
-                                text: root.settings.apiEndpoint
+                                text: root.draftApiEndpoint
                                 config: root.config
                                 placeholderText: "http://..."
-                                onTextChanged: {
-                                    root.settings.apiEndpoint = text;
-                                    root.config.apiEndpoint = text;
+                                onTextEdited: {
+                                    root.draftApiEndpoint = text;
+                                    root.markDirty();
                                 }
                             }
                         }
@@ -162,12 +206,12 @@ Popup {
                                 StyledTextField {
                                     id: apiKeyField
                                     Layout.fillWidth: true
-                                    text: root.settings.apiKey
+                                    text: root.draftApiKey
                                     config: root.config
                                     echoMode: showApiKey.checked ? TextInput.Normal : TextInput.Password
-                                    onTextChanged: {
-                                        root.settings.apiKey = text;
-                                        root.config.apiKey = text;
+                                    onTextEdited: {
+                                        root.draftApiKey = text;
+                                        root.markDirty();
                                     }
                                 }
 
@@ -210,71 +254,6 @@ Popup {
 
                         ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 6
-
-                            Text {
-                                text: "searxng url"
-                                color: root.config.textMuted
-                                font.family: root.config.fontFamily
-                                font.pixelSize: 13
-                                font.weight: Font.Medium
-                            }
-
-                            StyledTextField {
-                                Layout.fillWidth: true
-                                text: root.settings.searxngUrl
-                                config: root.config
-                                placeholderText: "http://localhost:8080"
-                                onTextChanged: {
-                                    root.settings.searxngUrl = text;
-                                    root.config.searxngUrl = text;
-                                }
-                            }
-                        }
-
-                        CheckBox {
-                            id: summarizeSearch
-                            text: "summarize search results"
-                            checked: root.settings.summarizeSearch
-
-                            onCheckedChanged: {
-                                root.settings.summarizeSearch = checked;
-                                root.config.summarizeSearch = checked;
-                            }
-
-                            indicator: Rectangle {
-                                implicitWidth: 18
-                                implicitHeight: 18
-                                x: 0
-                                y: summarizeSearch.height / 2 - height / 2
-                                radius: 5
-                                color: root.config.nestedSurfaceColor
-                                border.color: summarizeSearch.checked ? root.config.accent1 : root.config.outerBorderColor
-                                border.width: 1
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "✓"
-                                    visible: summarizeSearch.checked
-                                    color: root.config.accent1
-                                    font.family: root.config.fontFamily
-                                    font.pixelSize: 12
-                                    font.weight: Font.Bold
-                                }
-                            }
-
-                            contentItem: Text {
-                                text: summarizeSearch.text
-                                color: root.config.textMain
-                                font.family: root.config.fontFamily
-                                font.pixelSize: 13
-                                leftPadding: 25
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                        }
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
                             spacing: 8
 
                             RowLayout {
@@ -293,7 +272,7 @@ Popup {
                                 }
 
                                 Text {
-                                    text: root.settings.temperature.toFixed(1)
+                                    text: root.draftTemperature.toFixed(1)
                                     color: root.config.accent2
                                     font.family: root.config.fontFamily
                                     font.pixelSize: 13
@@ -307,11 +286,11 @@ Popup {
                                 from: 0
                                 to: 2
                                 stepSize: 0.1
-                                value: root.settings.temperature
+                                value: root.draftTemperature
 
                                 onMoved: {
-                                    root.settings.temperature = value;
-                                    root.config.temperature = value;
+                                    root.draftTemperature = value;
+                                    root.markDirty();
                                 }
 
                                 handle: Rectangle {
@@ -339,6 +318,121 @@ Popup {
                                         radius: parent.radius
                                         color: root.config.accent1
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: searxngColumn.implicitHeight + 28
+                    radius: root.config.cardRadius
+                    color: root.config.surfaceColor
+                    border.color: root.config.outerBorderColor
+                    border.width: 1
+
+                    ColumnLayout {
+                        id: searxngColumn
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 12
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 24
+                            spacing: 8
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "searxng"
+                                color: root.config.textMain
+                                font.family: root.config.fontFamily
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                            }
+
+                            Image {
+                                width: 16
+                                height: 16
+                                source: root.searxngExpanded ? "chevron-up.svg" : "chevron-down.svg"
+                                sourceSize: Qt.size(16, 16)
+                                fillMode: Image.PreserveAspectFit
+                            }
+
+                            TapHandler {
+                                onTapped: root.searxngExpanded = !root.searxngExpanded
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            visible: root.searxngExpanded
+                            spacing: 10
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+
+                                Text {
+                                    text: "searxng url"
+                                    color: root.config.textMuted
+                                    font.family: root.config.fontFamily
+                                    font.pixelSize: 13
+                                    font.weight: Font.Medium
+                                }
+
+                                StyledTextField {
+                                    id: searxngUrlField
+                                    Layout.fillWidth: true
+                                    text: root.draftSearxngUrl
+                                    config: root.config
+                                    placeholderText: "http://localhost:8080"
+                                    onTextEdited: {
+                                        root.draftSearxngUrl = text;
+                                        root.markDirty();
+                                    }
+                                }
+                            }
+
+                            CheckBox {
+                                id: summarizeSearch
+                                text: "summarize search results"
+                                checked: root.draftSummarizeSearch
+
+                                onToggled: {
+                                    root.draftSummarizeSearch = checked;
+                                    root.markDirty();
+                                }
+
+                                indicator: Rectangle {
+                                    implicitWidth: 18
+                                    implicitHeight: 18
+                                    x: 0
+                                    y: summarizeSearch.height / 2 - height / 2
+                                    radius: 5
+                                    color: root.config.nestedSurfaceColor
+                                    border.color: summarizeSearch.checked ? root.config.accent1 : root.config.outerBorderColor
+                                    border.width: 1
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "✓"
+                                        visible: summarizeSearch.checked
+                                        color: root.config.accent1
+                                        font.family: root.config.fontFamily
+                                        font.pixelSize: 12
+                                        font.weight: Font.Bold
+                                    }
+                                }
+
+                                contentItem: Text {
+                                    text: summarizeSearch.text
+                                    color: root.config.textMain
+                                    font.family: root.config.fontFamily
+                                    font.pixelSize: 13
+                                    leftPadding: 25
+                                    verticalAlignment: Text.AlignVCenter
                                 }
                             }
                         }
@@ -480,6 +574,27 @@ Popup {
                       addPersonaPopup.open();
                     }
                 }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 40
+            spacing: 12
+
+            Text {
+                Layout.fillWidth: true
+                text: root.saveStatus
+                color: root.saveStatus === "settings saved" ? root.config.accent1 : root.config.textMuted
+                font.family: root.config.fontFamily
+                font.pixelSize: 12
+            }
+
+            RetroButton {
+                text: "save"
+                config: root.config
+                Layout.preferredHeight: 38
+                onClicked: root.saveSettings()
             }
         }
     }

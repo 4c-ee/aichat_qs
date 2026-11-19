@@ -9,7 +9,6 @@ Item {
 
     property string pendingData: ""
     property bool isStreaming: false
-    property bool streamAborted: false
     property int lastLineProcessed: 0
     property string requestId: ""
     property var activeXhr: null
@@ -38,6 +37,7 @@ Item {
     signal responseChunk(string content)
     signal thinkingChunk(string content)
     signal streamingFinished()
+    signal requestStopped()
     signal errorOccurred(string error)
     signal modelsReceived(var models)
     signal modelsFailed(string error)
@@ -219,7 +219,6 @@ Item {
             root.activeXhr.abort();
             root.activeXhr = null;
         }
-        streamAborted = false;
         isStreaming = stream;
         lastLineProcessed = 0;
         var trimmedEndpoint = root.normalizeEndpoint(endpoint);
@@ -244,6 +243,7 @@ Item {
         }
         console.log("Sending request to:", url);
         var xhr = new XMLHttpRequest();
+        xhr.userStopped = false;
         root.activeXhr = xhr;
         xhr.open("POST", url, true);
         xhr.setRequestHeader("Content-Type", "application/json");
@@ -317,6 +317,9 @@ Item {
             }
         };
         xhr.onerror = function() {
+            if (xhr.userStopped)
+                return;
+
             root.activeXhr = null;
             root.errorOccurred("Network Error: Connection failed.");
         };
@@ -325,11 +328,13 @@ Item {
 
     function stop() {
         if (root.activeXhr) {
-            root.activeXhr.abort();
-            root.activeXhr = null;
-            streamAborted = true;
             isStreaming = false;
-            root.errorOccurred("Request stopped by user.");
+
+            var xhr = root.activeXhr;
+            root.activeXhr = null;
+            xhr.userStopped = true;
+            xhr.abort();
+            root.requestStopped();
         }
     }
 

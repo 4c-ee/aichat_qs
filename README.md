@@ -14,11 +14,11 @@ A specialized quick-access AI chat panel for Arch Linux and Hyprland, built with
 ## Installation & Usage
 
 1. **Install Quickshell**: Ensure `quickshell` is installed on your system.
-2. **Configure API Key**:
-   - Open `src/Config.qml`.
-   - Set your `apiEndpoint` (default is OpenAI).
-   - Set your `apiKey`.
-   - (Optional) Change the `modelName`.
+2. **Configure the API**:
+   - Open the panel's settings.
+   - Enter your API endpoint and key, then click **Save**.
+   - Expand **SearXNG** to configure web search settings.
+   - Defaults are defined in `src/Config.qml`; the active model can be changed from the model picker.
 3. **Run the Panel**:
    ```bash
    quickshell -p /path/to/aichat_qs/shell.qml

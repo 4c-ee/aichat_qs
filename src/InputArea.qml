@@ -8,6 +8,7 @@ ColumnLayout {
     id: root
 
     property bool isLoading
+    property bool modelPickerOpen: false
     property var attachments: []
     property var config
     readonly property alias modelPickerButton: modelButton
@@ -156,12 +157,12 @@ ColumnLayout {
                         anchors.rightMargin: 12
                         spacing: 8
 
-                        Text {
-                            text: "▶"
-                            color: root.config.accent1
-                            font.family: root.config.fontFamily
-                            font.pixelSize: 12
-                            font.weight: Font.Bold
+                        Image {
+                            width: 14
+                            height: 14
+                            source: root.modelPickerOpen ? "chevron-down.svg" : "chevron-up.svg"
+                            sourceSize: Qt.size(14, 14)
+                            fillMode: Image.PreserveAspectFit
                         }
 
                         Text {
@@ -242,13 +243,40 @@ ColumnLayout {
                         }
                     }
 
-                    Text {
+                    RowLayout {
                         anchors.centerIn: parent
-                        text: root.isLoading ? "stop ■" : "send →"
-                        color: sendMouseArea.containsMouse ? root.config.accent1Hover : root.config.accent1
-                        font.family: root.config.fontFamily
-                        font.pixelSize: 15
-                        font.weight: Font.DemiBold
+                        spacing: 8
+                        visible: !root.isLoading
+
+                        Text {
+                            text: "send →"
+                            color: sendMouseArea.containsMouse ? root.config.accent1Hover : root.config.accent1
+                            font.family: root.config.fontFamily
+                            font.pixelSize: 15
+                            font.weight: Font.DemiBold
+                        }
+                    }
+
+                    RowLayout {
+                        anchors.centerIn: parent
+                        spacing: 7
+                        visible: root.isLoading
+
+                        BusyIndicator {
+                            running: root.isLoading
+                            width: 17
+                            height: 17
+                            padding: 0
+                            palette.text: root.config.accent1
+                        }
+
+                        Text {
+                            text: "stop"
+                            color: sendMouseArea.containsMouse ? root.config.accent1Hover : root.config.accent1
+                            font.family: root.config.fontFamily
+                            font.pixelSize: 15
+                            font.weight: Font.DemiBold
+                        }
                     }
 
                     MouseArea {

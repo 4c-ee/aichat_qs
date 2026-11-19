@@ -13,17 +13,31 @@ Item {
     signal loadSessionRequested(string id)
     signal newChatRequested()
     signal updateSessionsModelRequested()
+    signal closed()
 
     width: parent.width
     height: parent.height
     z: 100
 
     property bool isOpen: false
+    property bool isClosing: false
+    property bool animating: false
     readonly property real drawerWidth: Math.min(340, root.width)
     readonly property real drawerX: drawer.x
 
-    function open() { isOpen = true; }
-    function close() { isOpen = false; }
+    function open() {
+        root.isClosing = false;
+        root.isOpen = true;
+    }
+
+    function close() {
+        if (!root.isOpen && !root.isClosing)
+            return;
+
+        root.isClosing = true;
+        root.animating = true;
+        root.isOpen = false;
+    }
 
     MouseArea {
         anchors.fill: parent
@@ -46,6 +60,13 @@ Item {
             NumberAnimation {
                 duration: 240
                 easing.type: Easing.OutCubic
+                onRunningChanged: {
+                    root.animating = running;
+                    if (!running && !root.isOpen) {
+                        root.isClosing = false;
+                        root.closed();
+                    }
+                }
             }
         }
 

@@ -85,15 +85,15 @@ ListView {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 24
 
-                    Text {
+                    Image {
                         id: thoughtArrow
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
-                        text: thoughtCard.expanded ? "▼" : "▶"
-                        color: root.config.accent1
-                        font.family: root.config.fontFamily
-                        font.pixelSize: 13
-                        font.weight: Font.Bold
+                        width: 14
+                        height: 14
+                        source: thoughtCard.expanded ? "chevron-up.svg" : "chevron-down.svg"
+                        sourceSize: Qt.size(14, 14)
+                        fillMode: Image.PreserveAspectFit
                     }
 
                     Text {
@@ -101,7 +101,7 @@ ListView {
                         anchors.leftMargin: 7
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Thinking..."
-                        color: root.config.accent1
+                        color: root.config.textMuted
                         font.family: root.config.fontFamily
                         font.pixelSize: 16
                         font.weight: Font.Medium
@@ -158,15 +158,15 @@ ListView {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 22
 
-                            Text {
+                            Image {
                                 id: toolArrow
                                 anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: toolCard.expanded ? "▼" : "▶"
-                                color: root.config.accent1
-                                font.family: root.config.fontFamily
-                                font.pixelSize: 13
-                                font.weight: Font.Bold
+                                width: 14
+                                height: 14
+                                source: toolCard.expanded ? "chevron-up.svg" : "chevron-down.svg"
+                                sourceSize: Qt.size(14, 14)
+                                fillMode: Image.PreserveAspectFit
                             }
 
                             Text {

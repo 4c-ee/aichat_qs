@@ -28,9 +28,9 @@ function formatMessage(text) {
         return token;
     });
 
-    // Inline emphasis. Bold and bold-italic use the icy accent color.
-    formatted = formatted.replace(/\*\*\*([^*]+)\*\*\*/g, '<b><i><font color="#c0f8fc">$1</font></i></b>');
-    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<b><font color="#c0f8fc">$1</font></b>');
+    // Inline emphasis. Bold keeps the surrounding text color.
+    formatted = formatted.replace(/\*\*\*([^*]+)\*\*\*/g, "<b><i>$1</i></b>");
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
     formatted = formatted.replace(/\*([^*\n]+)\*/g, "<i>$1</i>");
     formatted = formatted.replace(/~~([^~]+)~~/g, "<s>$1</s>");
 

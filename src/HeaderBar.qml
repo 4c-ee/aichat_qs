@@ -56,6 +56,43 @@ RowLayout {
         }
     }
 
+    Rectangle {
+        id: newChatButton
+        width: 44
+        height: 44
+        radius: config.controlRadius
+        color: config.surfaceColor
+        border.color: config.outerBorderColor
+        border.width: 1
+        scale: newChatTap.pressed ? 0.94 : 1.0
+
+        Behavior on scale {
+            NumberAnimation {
+                duration: 110
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        Text {
+            anchors.centerIn: parent
+            text: "+"
+            color: newChatHover.hovered ? config.accent1Hover : config.accent1
+            font.family: config.fontFamily
+            font.pixelSize: 28
+            font.weight: Font.DemiBold
+        }
+
+        HoverHandler {
+            id: newChatHover
+            cursorShape: Qt.PointingHandCursor
+        }
+
+        TapHandler {
+            id: newChatTap
+            onTapped: root.newChatRequested()
+        }
+    }
+
     Item {
         Layout.fillWidth: true
     }

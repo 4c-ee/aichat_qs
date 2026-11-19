@@ -23,6 +23,7 @@ PanelWindow {
 
     signal settingsPanelRequested()
     signal chatListPanelRequested()
+    signal slideFinished(bool opened)
 
     ApiClient {
         id: apiClient
@@ -97,15 +98,13 @@ PanelWindow {
             }
             if (wasAtEnd) chatView.positionViewAtEnd();
         }
+        onRequestStopped: {
+            root.isLoading = false;
+            root.savePartialAssistantMessage();
+        }
         onStreamingFinished: {
             root.isLoading = false;
-            if (chatModel.count > 0 && chatModel.get(chatModel.count - 1).sender === "ai") {
-                var lastIndex = chatModel.count - 1;
-                var lastItem = chatModel.get(lastIndex);
-                var assistantMsg = { role: "assistant", content: lastItem.message };
-                if (lastItem.thinking) assistantMsg.reasoning = lastItem.thinking;
-                root.messageHistory = [...root.messageHistory, assistantMsg];
-            }
+            root.savePartialAssistantMessage();
         }
         onErrorOccurred: (error) => {
             root.isLoading = false;
@@ -483,6 +482,20 @@ PanelWindow {
         return MessageFormatter.stripReasoningFromHistory(history);
     }
 
+    function savePartialAssistantMessage() {
+        if (chatModel.count === 0)
+            return;
+
+        var lastIndex = chatModel.count - 1;
+        var lastItem = chatModel.get(lastIndex);
+        if (lastItem.sender !== "ai")
+            return;
+
+        var assistantMsg = { role: "assistant", content: lastItem.message };
+        if (lastItem.thinking) assistantMsg.reasoning = lastItem.thinking;
+        root.messageHistory = [...root.messageHistory, assistantMsg];
+    }
+
     function contentToString(content) {
         return MessageFormatter.contentToString(content);
     }
@@ -709,8 +722,10 @@ PanelWindow {
                 duration: 300
                 easing.type: Easing.OutCubic
                 onRunningChanged: {
-                    if (!running && !root.opened) {
-                        root.visible = false;
+                    if (!running) {
+                        if (!root.opened)
+                            root.visible = false;
+                        root.slideFinished(root.opened);
                     }
                 }
             }
@@ -767,6 +782,7 @@ PanelWindow {
                     id: inputArea
                     config: config
                     isLoading: root.isLoading
+                    modelPickerOpen: modelPickerPopup.opened
                     attachments: root.attachments
 
                     onAttachmentAdded: (filePath) => {
@@ -798,6 +814,8 @@ PanelWindow {
                             }
                             root.messageHistory = [...root.messageHistory, userMessage];
                             root.attachments = [];
+                            root.isLoading = true;
+                            chatView.positionViewAtEnd();
                             apiClient.sendMessage(
                                 settings.apiEndpoint,
                                 settings.apiKey,
