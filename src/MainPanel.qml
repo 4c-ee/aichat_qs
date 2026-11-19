@@ -404,8 +404,36 @@ PanelWindow {
 
     function updateSessionsModel() {
         var sessions = JSON.parse(settings.savedSessions);
-        sessionsModel.clear();
-        sessions.forEach(s => sessionsModel.append(s));
+
+        // Reconcile instead of clearing the model so ListView can animate the
+        // removed conversation and displaced conversations moving upward.
+        for (var i = sessionsModel.count - 1; i >= 0; i--) {
+            var existing = sessionsModel.get(i);
+            var stillExists = sessions.some(session => session.id === existing.id);
+            if (!stillExists)
+                sessionsModel.remove(i);
+        }
+
+        sessions.forEach((session, targetIndex) => {
+            var currentIndex = -1;
+            for (var i = 0; i < sessionsModel.count; i++) {
+                if (sessionsModel.get(i).id === session.id) {
+                    currentIndex = i;
+                    break;
+                }
+            }
+
+            if (currentIndex === -1) {
+                sessionsModel.append(session);
+            } else {
+                if (currentIndex !== targetIndex)
+                    sessionsModel.move(currentIndex, targetIndex, 1);
+
+                var current = sessionsModel.get(targetIndex);
+                if (current.title !== session.title)
+                    sessionsModel.setProperty(targetIndex, "title", session.title);
+            }
+        });
     }
 
     Component.onCompleted: {

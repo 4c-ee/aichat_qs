@@ -88,12 +88,20 @@ Item {
                 spacing: 10
 
                 Rectangle {
-                    Layout.preferredWidth: 36
-                    Layout.preferredHeight: 36
+                    Layout.preferredWidth: 44
+                    Layout.preferredHeight: 44
                     radius: root.config.controlRadius
                     color: root.config.nestedSurfaceColor
                     border.color: root.config.outerBorderColor
                     border.width: 1
+                    scale: closeMouseArea.pressed ? 0.94 : 1.0
+
+                    Behavior on scale {
+                        NumberAnimation {
+                            duration: 110
+                            easing.type: Easing.OutCubic
+                        }
+                    }
 
                     Text {
                         anchors.centerIn: parent
@@ -139,6 +147,24 @@ Item {
                 model: root.sessionsModel
                 spacing: 8
 
+                remove: Transition {
+                    NumberAnimation {
+                        properties: "opacity"
+                        from: 1
+                        to: 0
+                        duration: 120
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
+                removeDisplaced: Transition {
+                    NumberAnimation {
+                        properties: "x,y"
+                        duration: 180
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
                 delegate: ItemDelegate {
                     id: sessionDelegate
                     width: sessionsListView.width
@@ -166,18 +192,28 @@ Item {
                         }
 
                         Rectangle {
-                            Layout.preferredWidth: 24
-                            Layout.preferredHeight: 24
-                            radius: 12
-                            color: "transparent"
-                            visible: sessionDelegate.hovered
+                            Layout.preferredWidth: 30
+                            Layout.preferredHeight: 30
+                            radius: 15
+                            color: deleteMouseArea.containsMouse ? Qt.rgba(1, 0.35, 0.35, 0.24) : Qt.rgba(1, 0.35, 0.35, 0.12)
+                            border.color: root.config.dangerColor
+                            border.width: 1
+                            scale: deleteMouseArea.pressed ? 0.88 : 1.0
+
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: 100
+                                    easing.type: Easing.OutCubic
+                                }
+                            }
 
                             Text {
                                 anchors.centerIn: parent
                                 text: "×"
-                                color: deleteMouseArea.containsMouse ? root.config.accent1Hover : root.config.textMuted
+                                color: root.config.dangerColor
                                 font.family: root.config.fontFamily
-                                font.pixelSize: 18
+                                font.pixelSize: 20
+                                font.weight: Font.DemiBold
                             }
 
                             MouseArea {

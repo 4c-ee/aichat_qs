@@ -109,6 +109,14 @@ Popup {
                 color: root.config.nestedSurfaceColor
                 border.color: root.config.outerBorderColor
                 border.width: 1
+                scale: closeMouseArea.pressed ? 0.94 : 1.0
+
+                Behavior on scale {
+                    NumberAnimation {
+                        duration: 110
+                        easing.type: Easing.OutCubic
+                    }
+                }
 
                 Text {
                     anchors.centerIn: parent

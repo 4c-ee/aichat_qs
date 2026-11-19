@@ -94,6 +94,14 @@ ListView {
                         source: thoughtCard.expanded ? "chevron-up.svg" : "chevron-down.svg"
                         sourceSize: Qt.size(14, 14)
                         fillMode: Image.PreserveAspectFit
+                        scale: thoughtMouseArea.pressed ? 0.86 : 1.0
+
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: 100
+                                easing.type: Easing.OutCubic
+                            }
+                        }
                     }
 
                     Text {
@@ -108,6 +116,7 @@ ListView {
                     }
 
                     MouseArea {
+                        id: thoughtMouseArea
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: thoughtCard.expanded = !thoughtCard.expanded
