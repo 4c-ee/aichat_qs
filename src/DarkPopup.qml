@@ -6,10 +6,12 @@ Popup {
 
     modal: true
     focus: true
-    padding: 20
+    padding: 18
 
     background: Rectangle {
-        color: "#1A1A1A"
-        border.color: "#404040"
+        radius: 18
+        color: "#33000000"
+        border.color: "#66000000"
+        border.width: 1
     }
 }

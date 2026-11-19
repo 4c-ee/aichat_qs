@@ -1,51 +1,52 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "ApiClient.js" as ApiClientJs
 
 Item {
     id: root
 
-    // Properties passed from parent
     property string currentSessionId
     property var settings
     property var sessionsModel
     property var config
 
-    // Signals to communicate with parent
     signal loadSessionRequested(string id)
     signal newChatRequested()
     signal updateSessionsModelRequested()
 
-    width: 300
+    width: parent.width
     height: parent.height
     z: 100
 
     property bool isOpen: false
+    readonly property real drawerWidth: Math.min(340, root.width)
+    readonly property real drawerX: drawer.x
 
     function open() { isOpen = true; }
     function close() { isOpen = false; }
 
-    // Background overlay for the rest of the panel to close on click
     MouseArea {
-        x: 0
-        y: 0
-        width: root.width
-        height: root.height
+        anchors.fill: parent
         visible: root.isOpen
+        acceptedButtons: Qt.LeftButton
         onClicked: root.close()
     }
 
     Rectangle {
-        width: 300
-        height: parent.height
-        color: "#1A1A1A"
-        border.color: "#404040"
+        id: drawer
+        width: root.drawerWidth
+        height: root.height
+        color: root.config.surfaceColor
+        border.color: root.config.outerBorderColor
         border.width: 1
+        radius: root.config.panelRadius
 
-        x: root.isOpen ? 0 : -width
+        x: root.isOpen ? 0 : -width - 2
         Behavior on x {
-            NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+            NumberAnimation {
+                duration: 240
+                easing.type: Easing.OutCubic
+            }
         }
 
         Shortcut {
@@ -57,52 +58,65 @@ Item {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 15
-            spacing: 15
+            anchors.margins: 16
+            spacing: 14
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredHeight: 40
+                spacing: 10
 
-                Item {
-                    width: 28
-                    height: 28
-                    Layout.alignment: Qt.AlignLeft
-                    Rectangle {
+                Rectangle {
+                    Layout.preferredWidth: 36
+                    Layout.preferredHeight: 36
+                    radius: root.config.controlRadius
+                    color: root.config.nestedSurfaceColor
+                    border.color: root.config.outerBorderColor
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "×"
+                        color: closeMouseArea.containsMouse ? root.config.accent1Hover : root.config.textMain
+                        font.family: root.config.fontFamily
+                        font.pixelSize: 23
+                    }
+
+                    MouseArea {
+                        id: closeMouseArea
                         anchors.fill: parent
-                        color: closeMouseArea.containsMouse ? "#333333" : "transparent"
-                        Text {
-                            text: "×"
-                            color: "#c5c5c5"
-                            font.family: root.config.fontFamily
-                            font.pixelSize: 22
-                            anchors.centerIn: parent
-                        }
-                        MouseArea {
-                            id: closeMouseArea
-                            hoverEnabled: true
-                            anchors.fill: parent
-                            onClicked: root.close()
-                        }
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.close()
                     }
                 }
 
-                Item { Layout.fillWidth: true }
-
                 Text {
-                    text: "Chat History"
-                    color: "#c5c5c5"
+                    Layout.fillWidth: true
+                    text: "Chat history"
+                    color: root.config.textMain
                     font.family: root.config.fontFamily
-                    font.pixelSize: 18
-                    Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                    font.pixelSize: 21
+                    font.weight: Font.DemiBold
                 }
 
-                Item { Layout.fillWidth: true }
-
-                Item {
-                    width: 28
-                    height: 28
+                RetroButton {
+                    text: "+ New"
+                    config: root.config
+                    onClicked: {
+                        root.newChatRequested();
+                        root.close();
+                    }
                 }
+            }
+
+            Text {
+                text: "RECENT CONVERSATIONS"
+                color: root.config.textMuted
+                font.family: root.config.fontFamily
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+                font.letterSpacing: 0.8
             }
 
             ListView {
@@ -110,79 +124,96 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
-                model: sessionsModel
-                spacing: 5
+                model: root.sessionsModel
+                spacing: 8
+
                 delegate: ItemDelegate {
                     id: sessionDelegate
                     width: sessionsListView.width
-                    height: 50
-                    padding: 10
+                    height: 58
+                    padding: 12
+
                     contentItem: RowLayout {
+                        spacing: 8
+
+                        Rectangle {
+                            Layout.preferredWidth: 6
+                            Layout.preferredHeight: 6
+                            radius: 3
+                            color: root.currentSessionId === model.id ? root.config.accent1 : root.config.textMuted
+                        }
+
                         Text {
-                            text: title
-                            color: root.currentSessionId === id ? "#FFFFFF" : "#c5c5c5"
+                            Layout.fillWidth: true
+                            text: model.title
+                            color: root.currentSessionId === model.id ? root.config.textMain : root.config.textMuted
                             font.family: root.config.fontFamily
                             font.pixelSize: 14
-                            Layout.fillWidth: true
+                            font.weight: root.currentSessionId === model.id ? Font.Medium : Font.Normal
                             elide: Text.ElideRight
                         }
 
-                        Item {
-                            width: 20
-                            height: 20
+                        Rectangle {
+                            Layout.preferredWidth: 24
+                            Layout.preferredHeight: 24
+                            radius: 12
+                            color: "transparent"
+                            visible: sessionDelegate.hovered
+
                             Text {
-                                text: "×"
-                                color: "#808080"
-                                font.pixelSize: 20
-                                visible: sessionDelegate.hovered
                                 anchors.centerIn: parent
+                                text: "×"
+                                color: deleteMouseArea.containsMouse ? root.config.accent1Hover : root.config.textMuted
+                                font.family: root.config.fontFamily
+                                font.pixelSize: 18
                             }
+
                             MouseArea {
+                                id: deleteMouseArea
                                 anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     var sessions = JSON.parse(root.settings.savedSessions);
-                                    var index = sessions.findIndex(s => s.id === id);
+                                    var index = sessions.findIndex(s => s.id === model.id);
                                     if (index !== -1) {
                                         sessions.splice(index, 1);
                                         root.settings.savedSessions = JSON.stringify(sessions);
                                         root.updateSessionsModelRequested();
-                                        if (root.currentSessionId === id) {
-                                            if (sessions.length > 0) root.loadSessionRequested(sessions[0].id);
-                                            else root.newChatRequested();
+                                        if (root.currentSessionId === model.id) {
+                                            if (sessions.length > 0)
+                                                root.loadSessionRequested(sessions[0].id);
+                                            else
+                                                root.newChatRequested();
                                         }
                                     }
                                 }
                             }
                         }
                     }
+
                     background: Rectangle {
-                        color: hovered ? "#333333" : (root.currentSessionId === id ? "#222222" : "transparent")
-                        border.color: root.currentSessionId === id ? "#404040" : "transparent"
+                        radius: root.config.controlRadius
+                        color: root.config.surfaceColor
+                        border.color: root.currentSessionId === model.id ? root.config.accent1 : root.config.subtleBorderColor
+                        border.width: 1
                     }
+
                     onClicked: {
-                        root.loadSessionRequested(id);
+                        root.loadSessionRequested(model.id);
                         root.close();
                     }
                 }
             }
 
-            Button {
-                text: "New Chat"
+            Text {
                 Layout.fillWidth: true
-                onClicked: {
-                    root.newChatRequested();
-                    root.close();
-                }
-                background: Rectangle {
-                    color: parent.hovered ? "#333333" : "#1A1A1A"
-                    border.color: "#404040"
-                }
-                contentItem: Text {
-                    text: parent.text
-                    color: "#c5c5c5"
-                    font.family: root.config.fontFamily
-                    horizontalAlignment: Text.AlignHCenter
-                }
+                visible: sessionsListView.count === 0
+                text: "No conversations yet"
+                color: root.config.textMuted
+                font.family: root.config.fontFamily
+                font.pixelSize: 14
+                horizontalAlignment: Text.AlignHCenter
             }
         }
     }

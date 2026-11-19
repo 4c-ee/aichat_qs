@@ -1,36 +1,53 @@
 .pragma library
 
+function escapeHtml(text) {
+    var amp = String.fromCharCode(38);
+    return String(text)
+        .replace(/&/g, amp + "amp;")
+        .replace(/</g, amp + "lt;")
+        .replace(/>/g, amp + "gt;");
+}
+
 function formatMessage(text) {
     if (!text) return "";
 
-    var formatted = text.replace(/&/g, "&")
-                        .replace(/</g, "<")
-                        .replace(/>/g, ">");
+    var formatted = escapeHtml(text);
+    var protectedBlocks = [];
 
+    // Protect code first so markdown and HTML inside it remain literal.
     formatted = formatted.replace(/```([\s\S]*?)```/g, function(match, code) {
-        return '<pre style="padding: 5px; border: 1px solid #404040;">' + code.trim() + '</pre>';
+        var token = "%%AICHAT_CODEBLOCK_" + protectedBlocks.length + "%%";
+        protectedBlocks.push('<pre style="color:#b6cacc; padding:8px; background-color:#33000000;">' + code.trim() + "</pre>");
+        return token;
     });
 
-    formatted = formatted.replace(/`([^`]+)`/g, '<code style="padding: 2px; border: 1px solid #404040;">$1</code>');
+    var protectedInlineCode = [];
+    formatted = formatted.replace(/`([^`]+)`/g, function(match, code) {
+        var token = "%%AICHAT_INLINECODE_" + protectedInlineCode.length + "%%";
+        protectedInlineCode.push('<code style="color:#c0f8fc; padding:2px;">' + code + "</code>");
+        return token;
+    });
 
-    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
-
-    formatted = formatted.replace(/\*([^*]+)\*/g, "<i>$1</i>");
-
+    // Inline emphasis. Bold and bold-italic use the icy accent color.
+    formatted = formatted.replace(/\*\*\*([^*]+)\*\*\*/g, '<b><i><font color="#c0f8fc">$1</font></i></b>');
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<b><font color="#c0f8fc">$1</font></b>');
+    formatted = formatted.replace(/\*([^*\n]+)\*/g, "<i>$1</i>");
     formatted = formatted.replace(/~~([^~]+)~~/g, "<s>$1</s>");
 
-    formatted = formatted.replace(/^### (.*$)/gm, "<h3>$1</h3>");
-    formatted = formatted.replace(/^## (.*$)/gm, "<h2>$1</h2>");
-    formatted = formatted.replace(/^# (.*$)/gm, "<h1>$1</h1>");
-
+    // Block-level markdown.
+    formatted = formatted.replace(/^### (.*$)/gm, '<h3 style="color:#c0f8fc;">$1</h3>');
+    formatted = formatted.replace(/^## (.*$)/gm, '<h2 style="color:#c0f8fc;">$1</h2>');
+    formatted = formatted.replace(/^# (.*$)/gm, '<h1 style="color:#c0f8fc;">$1</h1>');
     formatted = formatted.replace(/^---$/gm, "<hr/>");
     formatted = formatted.replace(/^\*\*\*$/gm, "<hr/>");
 
     formatted = formatted.replace(/^\|(.+)\|$/gm, function(match, content) {
-        var cells = content.split('|').map(function(c) { return '<td style="border: 1px solid #404040; padding: 5px;">' + c.trim() + "</td>"; }).join('');
+        var cells = content.split("|").map(function(cell) {
+            return '<td style="color:#e0fafc; padding:5px;">' + cell.trim() + "</td>";
+        }).join("");
         return "<tr>" + cells + "</tr>";
     });
-    formatted = formatted.replace(/((?:<tr>.*<\/tr>\n?)+)/g, '<table style="border-collapse: collapse; margin: 10px 0;">$1</table>');
+    formatted = formatted.replace(/((?:<tr>.*<\/tr>\n?)+)/g, '<table style="border-collapse:collapse; margin:10px 0;">$1</table>');
     formatted = formatted.replace(/<tr>(?:\s*<td>\s*[:\-]+\s*<\/td>\s*)+<\/tr>/g, "");
 
     formatted = formatted.replace(/^[\*-] (.*$)/gm, "<li>$1</li>");
@@ -38,6 +55,13 @@ function formatMessage(text) {
 
     formatted = formatted.replace(/\n/g, "<br/>");
     formatted = formatted.replace(/(<\/(?:h1|h2|h3|ul|li|table|tr|pre|hr)>)<br\/>/g, "$1");
+
+    protectedInlineCode.forEach(function(block, index) {
+        formatted = formatted.replace("%%AICHAT_INLINECODE_" + index + "%%", block);
+    });
+    protectedBlocks.forEach(function(block, index) {
+        formatted = formatted.replace("%%AICHAT_CODEBLOCK_" + index + "%%", block);
+    });
 
     return formatted;
 }
@@ -59,7 +83,7 @@ function contentToString(content) {
     if (typeof content === "string") return content;
     if (Array.isArray(content)) {
         var result = "";
-        content.forEach(item => {
+        content.forEach(function(item) {
             if (item.type === "text") result += item.text;
             else if (item.type === "image_url") result += "\n[Image Attachment]";
             else if (item.type === "input_audio") result += "\n[Audio Attachment]";

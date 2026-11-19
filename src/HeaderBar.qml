@@ -6,81 +6,95 @@ RowLayout {
     id: root
 
     property var currentPersona
-    property bool sideMenuOpen
     property var settings
-    property var sideMenu
     property var config
 
     signal newChatRequested()
-    signal settingsRequested()
+    signal settingsPanelRequested()
+    signal chatListPanelRequested()
 
-    height: 40
+    Layout.fillWidth: true
+    Layout.preferredHeight: 44
+    spacing: 10
 
+    // History / thread switcher
     Rectangle {
-        width: 40
-        height: 28
-        color: menuMouseArea.containsMouse ? "#333333" : "transparent"
-        Image {
-            source: "menu.svg"
-            sourceSize: Qt.size(37, 24)
-            anchors.centerIn: parent
-        }
-        MouseArea {
-            id: menuMouseArea
-            hoverEnabled: true
-            anchors.fill: parent
-            onClicked: {
-                if (root.sideMenu.isOpen) {
-                    root.sideMenu.close();
-                } else {
-                    root.sideMenu.open();
-                }
+        id: menuButton
+        width: 44
+        height: 44
+        radius: config.controlRadius
+        color: config.surfaceColor
+        border.color: config.outerBorderColor
+        border.width: 1
+        scale: menuTap.pressed ? 0.94 : 1.0
+
+        Behavior on scale {
+            NumberAnimation {
+                duration: 110
+                easing.type: Easing.OutCubic
             }
         }
-    }
 
-    Rectangle {
-        width: 28
-        height: 28
-        color: plusMouseArea.containsMouse ? "#333333" : "transparent"
         Image {
-            source: "plus.svg"
-            sourceSize: Qt.size(20, 20)
+            id: menuIcon
             anchors.centerIn: parent
+            width: 22
+            height: 22
+            source: menuHover.hovered ? "menu-hover.svg" : "menu.svg"
+            sourceSize: Qt.size(22, 22)
+            fillMode: Image.PreserveAspectFit
         }
-        MouseArea {
-            id: plusMouseArea
-            hoverEnabled: true
-            anchors.fill: parent
-            onClicked: root.newChatRequested()
+
+        HoverHandler {
+            id: menuHover
+            cursorShape: Qt.PointingHandCursor
+        }
+
+        TapHandler {
+            id: menuTap
+            onTapped: root.chatListPanelRequested()
         }
     }
 
-    Item { Layout.fillWidth: true }
-
-    Text {
-        text: root.currentPersona.name
-        color: "#808080"
-        font.family: root.config.fontFamily
-        font.pixelSize: 12
-        Layout.alignment: Qt.AlignVCenter
+    Item {
+        Layout.fillWidth: true
     }
 
+    // Model and panel settings
     Rectangle {
-        width: 28
-        height: 28
-        color: settingsMouseArea.containsMouse ? "#333333" : "transparent"
-        Image {
-            source: "cog.svg"
-            sourceSize: Qt.size(24, 24)
-            anchors.centerIn: parent
-            fillMode: Image.Pad
+        id: settingsButton
+        width: 44
+        height: 44
+        radius: config.controlRadius
+        color: config.surfaceColor
+        border.color: config.outerBorderColor
+        border.width: 1
+        scale: settingsTap.pressed ? 0.94 : 1.0
+
+        Behavior on scale {
+            NumberAnimation {
+                duration: 110
+                easing.type: Easing.OutCubic
+            }
         }
-        MouseArea {
-            id: settingsMouseArea
-            hoverEnabled: true
-            anchors.fill: parent
-            onClicked: root.settingsRequested()
+
+        Image {
+            anchors.centerIn: parent
+            width: 23
+            height: 23
+            source: settingsHover.hovered ? "sliders-hover.svg" : "sliders.svg"
+            sourceSize: Qt.size(23, 23)
+            fillMode: Image.PreserveAspectFit
+        }
+
+        HoverHandler {
+            id: settingsHover
+            cursorShape: Qt.PointingHandCursor
+        }
+
+        TapHandler {
+            id: settingsTap
+            onTapped: root.settingsPanelRequested()
         }
     }
 }

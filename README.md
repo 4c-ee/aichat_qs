@@ -8,6 +8,7 @@ A specialized quick-access AI chat panel for Arch Linux and Hyprland, built with
 - **Multimedia Support**: Drag and drop images, audio, and files.
 - **Session Persistence**: Chat history is saved across restarts.
 - **Markdown Support**: Basic rendering of bold, italic, and code blocks.
+- **SearXNG integration**: Ask your AI to search the web and recieve summarized answers.
 - **Wayland Optimized**: Uses Layer Shell for proper placement and focus.
 
 ## Installation & Usage

@@ -5,12 +5,10 @@ import QtQuick.Layouts
 Popup {
     id: root
 
-    // Properties
     property var settings
     property var config
     property var generateIdFn
 
-    // Signals
     signal personaSelected(string id)
     signal personaEdited()
     signal personaDeleted()
@@ -22,29 +20,76 @@ Popup {
     height: parent.height
     modal: true
     focus: true
-    padding: 20
+    padding: 0
+    closePolicy: Popup.CloseOnEscape
 
     onOpened: {
         personasModel.clear();
-        var ps = JSON.parse(root.settings.personas);
-        ps.forEach(p => personasModel.append(p));
+        var parsedPersonas = JSON.parse(root.settings.personas);
+        parsedPersonas.forEach(persona => personasModel.append(persona));
     }
 
     background: Rectangle {
-        color: "#1A1A1A"
-        border.color: "#404040"
+        radius: root.config.panelRadius
+        color: root.config.surfaceColor
+        border.color: root.config.outerBorderColor
+        border.width: 1
     }
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 20
+        anchors.margins: 18
+        spacing: 14
 
-        Text {
-            text: "Settings"
-            color: "#c5c5c5"
-            font.family: root.config.fontFamily
-            font.pixelSize: 20
-            Layout.alignment: Qt.AlignHCenter
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 42
+            spacing: 12
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
+
+                Text {
+                    text: "Settings"
+                    color: root.config.textMain
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 23
+                    font.weight: Font.DemiBold
+                }
+
+                Text {
+                    text: "Connection, model behavior, and personas"
+                    color: root.config.textMuted
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 12
+                }
+            }
+
+            Rectangle {
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                radius: root.config.controlRadius
+                color: root.config.nestedSurfaceColor
+                border.color: root.config.outerBorderColor
+                border.width: 1
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "×"
+                    color: closeMouseArea.containsMouse ? root.config.accent1Hover : root.config.textMain
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 23
+                }
+
+                MouseArea {
+                    id: closeMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.close()
+                }
+            }
         }
 
         ScrollView {
@@ -56,255 +101,401 @@ Popup {
 
             ColumnLayout {
                 width: settingsScrollView.availableWidth
-                spacing: 25
+                spacing: 16
 
-                // Configuration Section
-                ColumnLayout {
+                Text {
+                    text: "CONFIGURATION"
+                    color: root.config.accent1
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 0.8
+                }
+
+                Rectangle {
                     Layout.fillWidth: true
-                    spacing: 10
-
-                    Text { text: "CONFIGURATION"; color: "#808080"; font.family: root.config.fontFamily; font.pixelSize: 12 }
+                    implicitHeight: configurationColumn.implicitHeight + 28
+                    radius: root.config.cardRadius
+                    color: root.config.surfaceColor
+                    border.color: root.config.outerBorderColor
+                    border.width: 1
 
                     ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 5
-                        Text { text: "API Endpoint"; color: "#c5c5c5"; font.family: root.config.fontFamily; font.pixelSize: 12 }
-                        StyledTextField {
+                        id: configurationColumn
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 13
+
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            Layout.minimumWidth: 250
-                            text: root.settings.apiEndpoint
-                            config: root.config
-                            placeholderText: "http://..."
-                            onTextChanged: {
-                                root.settings.apiEndpoint = text;
-                                root.config.apiEndpoint = text;
+                            spacing: 6
+
+                            Text {
+                                text: "API endpoint"
+                                color: root.config.textMuted
+                                font.family: root.config.fontFamily
+                                font.pixelSize: 13
+                                font.weight: Font.Medium
                             }
-                        }
-                    }
 
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 5
-                        Text { text: "API Key"; color: "#c5c5c5"; font.family: root.config.fontFamily; font.pixelSize: 12 }
-                        RowLayout {
-                            Layout.fillWidth: true
                             StyledTextField {
-                                id: apiKeyField
                                 Layout.fillWidth: true
-                                Layout.minimumWidth: 200
-                                text: root.settings.apiKey
+                                text: root.settings.apiEndpoint
                                 config: root.config
-                                echoMode: showApiKey.checked ? TextInput.Normal : TextInput.Password
+                                placeholderText: "http://..."
                                 onTextChanged: {
-                                    root.settings.apiKey = text;
-                                    root.config.apiKey = text;
+                                    root.settings.apiEndpoint = text;
+                                    root.config.apiEndpoint = text;
                                 }
                             }
-                            CheckBox {
-                                id: showApiKey
-                                text: "Show"
-                                background: Rectangle { color: "#222222"; border.color: "#404040" }
-                                contentItem: Text { text: "Show"; color: "#c5c5c5"; font.family: root.config.fontFamily; leftPadding: 25 }
-                            }
                         }
-                    }
 
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 5
-                        Text { text: "SearXNG URL"; color: "#c5c5c5"; font.family: root.config.fontFamily; font.pixelSize: 12 }
-                        StyledTextField {
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            text: root.settings.searxngUrl
-                            config: root.config
-                            placeholderText: "http://localhost:8080"
-                            onTextChanged: {
-                                root.settings.searxngUrl = text;
-                                root.config.searxngUrl = text;
+                            spacing: 6
+
+                            Text {
+                                text: "API key"
+                                color: root.config.textMuted
+                                font.family: root.config.fontFamily
+                                font.pixelSize: 13
+                                font.weight: Font.Medium
                             }
-                        }
-                    }
 
-                    CheckBox {
-                        text: "Summarize Search Results"
-                        checked: root.settings.summarizeSearch
-                        background: Rectangle { color: "#222222"; border.color: "#404040" }
-                        contentItem: Text { text: "Summarize Search Results"; color: "#c5c5c5"; font.family: root.config.fontFamily; leftPadding: 25 }
-                        onCheckedChanged: {
-                            root.settings.summarizeSearch = checked;
-                            root.config.summarizeSearch = checked;
-                        }
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 5
-                        Text {
-                            text: "Temperature: " + root.settings.temperature.toFixed(1)
-                            color: "#c5c5c5"
-                            font.family: root.config.fontFamily
-                            font.pixelSize: 12
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            height: 20
-                            Item { width: 5 }
-                            Rectangle {
-                                id: temperatureSliderTrackContainer
+                            RowLayout {
                                 Layout.fillWidth: true
-                                height: 6
-                                color: "#222222"
-                                radius: 3
-                                Rectangle {
-                                    id: temperatureTrack
-                                    width: (root.settings.temperature / 2.0) * parent.width
-                                    height: parent.height
-                                    color: "#c5c5c5"
-                                    radius: 3
-                                }
-                                Rectangle {
-                                    id: temperatureHandle
-                                    width: 12
-                                    height: 12
-                                    x: Math.max(0, Math.min(parent.width - width, temperatureTrack.width - width / 2))
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    color: "#c5c5c5"
-                                    border.color: "#404040"
-                                    border.width: 1
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    onClicked: {
-                                        var ratio = mouse.x / width;
-                                        var newVal = ratio * 2.0;
-                                        newVal = Math.round(newVal * 10) / 10;
-                                        root.settings.temperature = Math.max(0, Math.min(2.0, newVal));
-                                        root.config.temperature = root.settings.temperature;
+                                spacing: 8
+
+                                StyledTextField {
+                                    id: apiKeyField
+                                    Layout.fillWidth: true
+                                    text: root.settings.apiKey
+                                    config: root.config
+                                    echoMode: showApiKey.checked ? TextInput.Normal : TextInput.Password
+                                    onTextChanged: {
+                                        root.settings.apiKey = text;
+                                        root.config.apiKey = text;
                                     }
-                                    onPositionChanged: {
-                                        if (mouse.buttons === Qt.LeftButton) {
-                                            var ratio = mouse.x / width;
-                                            var newVal = ratio * 2.0;
-                                            newVal = Math.round(newVal * 10) / 10;
-                                            root.settings.temperature = Math.max(0, Math.min(2.0, newVal));
-                                            root.config.temperature = root.settings.temperature;
+                                }
+
+                                CheckBox {
+                                    id: showApiKey
+                                    text: "Show"
+
+                                    indicator: Rectangle {
+                                        implicitWidth: 18
+                                        implicitHeight: 18
+                                        x: 0
+                                        y: showApiKey.height / 2 - height / 2
+                                        radius: 5
+                                        color: root.config.nestedSurfaceColor
+                                        border.color: showApiKey.checked ? root.config.accent1 : root.config.outerBorderColor
+                                        border.width: 1
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "✓"
+                                            visible: showApiKey.checked
+                                            color: root.config.accent1
+                                            font.family: root.config.fontFamily
+                                            font.pixelSize: 12
+                                            font.weight: Font.Bold
                                         }
                                     }
+
+                                    contentItem: Text {
+                                        text: showApiKey.text
+                                        color: root.config.textMain
+                                        font.family: root.config.fontFamily
+                                        font.pixelSize: 13
+                                        leftPadding: 25
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
                                 }
                             }
-                            Item { width: 5 }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            Text {
+                                text: "SearXNG URL"
+                                color: root.config.textMuted
+                                font.family: root.config.fontFamily
+                                font.pixelSize: 13
+                                font.weight: Font.Medium
+                            }
+
+                            StyledTextField {
+                                Layout.fillWidth: true
+                                text: root.settings.searxngUrl
+                                config: root.config
+                                placeholderText: "http://localhost:8080"
+                                onTextChanged: {
+                                    root.settings.searxngUrl = text;
+                                    root.config.searxngUrl = text;
+                                }
+                            }
+                        }
+
+                        CheckBox {
+                            id: summarizeSearch
+                            text: "Summarize search results"
+                            checked: root.settings.summarizeSearch
+
+                            onCheckedChanged: {
+                                root.settings.summarizeSearch = checked;
+                                root.config.summarizeSearch = checked;
+                            }
+
+                            indicator: Rectangle {
+                                implicitWidth: 18
+                                implicitHeight: 18
+                                x: 0
+                                y: summarizeSearch.height / 2 - height / 2
+                                radius: 5
+                                color: root.config.nestedSurfaceColor
+                                border.color: summarizeSearch.checked ? root.config.accent1 : root.config.outerBorderColor
+                                border.width: 1
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    visible: summarizeSearch.checked
+                                    color: root.config.accent1
+                                    font.family: root.config.fontFamily
+                                    font.pixelSize: 12
+                                    font.weight: Font.Bold
+                                }
+                            }
+
+                            contentItem: Text {
+                                text: summarizeSearch.text
+                                color: root.config.textMain
+                                font.family: root.config.fontFamily
+                                font.pixelSize: 13
+                                leftPadding: 25
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            RowLayout {
+                                Layout.fillWidth: true
+
+                                Text {
+                                    text: "Temperature"
+                                    color: root.config.textMuted
+                                    font.family: root.config.fontFamily
+                                    font.pixelSize: 13
+                                    font.weight: Font.Medium
+                                }
+
+                                Item {
+                                    Layout.fillWidth: true
+                                }
+
+                                Text {
+                                    text: root.settings.temperature.toFixed(1)
+                                    color: root.config.accent2
+                                    font.family: root.config.fontFamily
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+
+                            Slider {
+                                id: temperatureSlider
+                                Layout.fillWidth: true
+                                from: 0
+                                to: 2
+                                stepSize: 0.1
+                                value: root.settings.temperature
+
+                                onMoved: {
+                                    root.settings.temperature = value;
+                                    root.config.temperature = value;
+                                }
+
+                                handle: Rectangle {
+                                    x: temperatureSlider.visualPosition * (temperatureSlider.availableWidth - width)
+                                    y: temperatureSlider.topPadding + (temperatureSlider.availableHeight - height) / 2
+                                    width: 17
+                                    height: 17
+                                    radius: 9
+                                    color: root.config.accent1
+                                    border.color: root.config.accent1Hover
+                                    border.width: 1
+                                }
+
+                                background: Rectangle {
+                                    x: temperatureSlider.leftPadding
+                                    y: temperatureSlider.topPadding + (temperatureSlider.availableHeight - height) / 2
+                                    width: temperatureSlider.availableWidth
+                                    height: 5
+                                    radius: 3
+                                    color: root.config.nestedSurfaceColor
+
+                                    Rectangle {
+                                        width: temperatureSlider.visualPosition * parent.width
+                                        height: parent.height
+                                        radius: parent.radius
+                                        color: root.config.accent1
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
-                // Personas Section
-                ColumnLayout {
+                Text {
+                    text: "PERSONAS"
+                    color: root.config.accent1
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 0.8
+                }
+
+                ListView {
+                    id: personasListView
                     Layout.fillWidth: true
-                    spacing: 10
+                    Layout.preferredHeight: contentHeight
+                    interactive: false
+                    model: ListModel { id: personasModel }
+                    spacing: 9
 
-                    Text { text: "PERSONAS"; color: "#808080"; font.family: root.config.fontFamily; font.pixelSize: 12 }
+                    delegate: Rectangle {
+                        width: personasListView.width
+                        implicitHeight: personaColumn.implicitHeight + 24
+                        radius: root.config.cardRadius
+                        color: root.config.surfaceColor
+                        border.color: root.settings.currentPersonaId === model.id ? root.config.accent1 : root.config.outerBorderColor
+                        border.width: 1
 
-                    ListView {
-                        id: personasListView
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: contentHeight
-                        interactive: false
-                        model: ListModel { id: personasModel }
-                        spacing: 10
-                        delegate: Rectangle {
-                            width: personasListView.width
-                            height: implicitHeight
-                            implicitHeight: personaCol.implicitHeight + 20
-                            color: root.settings.currentPersonaId === id ? "#222222" : "transparent"
-                            border.color: "#404040"
+                        ColumnLayout {
+                            id: personaColumn
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 8
 
-                            ColumnLayout {
-                                id: personaCol
-                                anchors.fill: parent
-                                anchors.margins: 10
+                            RowLayout {
+                                Layout.fillWidth: true
 
                                 Text {
-                                    text: name
-                                    color: "#FFFFFF"
+                                    Layout.fillWidth: true
+                                    text: model.name
+                                    color: root.config.textMain
                                     font.family: root.config.fontFamily
-                                    font.pixelSize: 14
+                                    font.pixelSize: 15
+                                    font.weight: Font.DemiBold
+                                }
+
+                                Rectangle {
+                                    visible: root.settings.currentPersonaId === model.id
+                                    Layout.preferredWidth: 62
+                                    Layout.preferredHeight: 22
+                                    radius: 8
+                                    color: root.config.nestedSurfaceColor
+                                    border.color: root.config.accent1
+                                    border.width: 1
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "ACTIVE"
+                                        color: root.config.accent1
+                                        font.family: root.config.fontFamily
+                                        font.pixelSize: 9
+                                        font.weight: Font.Bold
+                                        font.letterSpacing: 0.6
+                                    }
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "System: " + model.system.substring(0, 72) + (model.system.length > 72 ? "…" : "")
+                                color: root.config.textMuted
+                                font.family: root.config.fontFamily
+                                font.pixelSize: 12
+                                wrapMode: Text.WordWrap
+                                maximumLineCount: 2
+                                elide: Text.ElideRight
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 7
+
+                                Item {
                                     Layout.fillWidth: true
                                 }
 
-                                Text {
-                                    text: "System: " + system.substring(0, 50) + (system.length > 50 ? "..." : "")
-                                    color: "#808080"
-                                    font.family: root.config.fontFamily
-                                    font.pixelSize: 10
-                                    wrapMode: Text.WordWrap
-                                    Layout.fillWidth: true
+                                RetroButton {
+                                    text: "Select"
+                                    visible: root.settings.currentPersonaId !== model.id
+                                    config: root.config
+                                    onClicked: root.personaSelected(model.id)
                                 }
 
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Item { Layout.fillWidth: true }
-                                    RetroButton {
-                                        text: "Select"
-                                        visible: root.settings.currentPersonaId !== id
-                                        onClicked: root.personaSelected(id)
+                                RetroButton {
+                                    text: "Edit"
+                                    config: root.config
+                                    onClicked: {
+                                        editPersonaPopup.editingId = model.id;
+                                        editPersonaName.text = model.name;
+                                        editPersonaSystem.text = model.system;
+                                        editPersonaPersonality.text = model.personality || "";
+                                        editPersonaPopup.open();
                                     }
-                                    RetroButton {
-                                        text: "Edit"
-                                        onClicked: {
-                                            editPersonaPopup.editingId = id;
-                                            editPersonaName.text = name;
-                                            editPersonaSystem.text = system;
-                                            editPersonaPersonality.text = personality || "";
-                                            editPersonaPopup.open();
-                                        }
-                                    }
-                                    RetroButton {
-                                        text: "Delete"
-                                        visible: id !== "default"
-                                        onClicked: {
-                                            var ps = JSON.parse(root.settings.personas);
-                                            var idx = ps.findIndex(p => p.id === id);
-                                            if (idx !== -1) {
-                                                ps.splice(idx, 1);
-                                                root.settings.personas = JSON.stringify(ps);
-                                                if (root.settings.currentPersonaId === id) root.settings.currentPersonaId = "default";
+                                }
 
-                                                personasModel.clear();
-                                                ps.forEach(p => personasModel.append(p));
-                                                root.personaDeleted();
-                                            }
+                                RetroButton {
+                                    text: "Delete"
+                                    visible: model.id !== "default"
+                                    config: root.config
+                                    onClicked: {
+                                        var parsedPersonas = JSON.parse(root.settings.personas);
+                                        var index = parsedPersonas.findIndex(persona => persona.id === model.id);
+                                        if (index !== -1) {
+                                            parsedPersonas.splice(index, 1);
+                                            root.settings.personas = JSON.stringify(parsedPersonas);
+                                            if (root.settings.currentPersonaId === model.id)
+                                                root.settings.currentPersonaId = "default";
+
+                                            personasModel.clear();
+                                            parsedPersonas.forEach(persona => personasModel.append(persona));
+                                            root.personaDeleted();
                                         }
                                     }
                                 }
                             }
                         }
                     }
+                }
 
-                    RetroButton {
-                        text: "+ Add Persona"
-                        Layout.fillWidth: true
-                        onClicked: {
-                            newPersonaSystem.text = "You are a helpful assistant. System Info:\\n- OS: {os}\\n- Kernel: {kernel}\\n- DE: {de}\\n- User: {user}\\n- Host: {hostname}\\n- Time: {date time}\\n\\n# Tool Use\\nYou can call tools by outputting tool[\\\"(tool_name)\\\", \\\"input1\\\", \\\"input2\\\"].\\nThe tool call MUST be at the end of your response.\\n\\nAvailable tools:\\n- tool[\\\"search\\\", \\\"query\\\"]: Searches the web using SearXNG. Returns top results and text from the first 3.\\n- tool[\\\"getpage\\\", \\\"url\\\", \\\"prompt\\\"]: Fetches a URL and uses a separate model to extract info based on the prompt.";
-                            addPersonaPopup.open();
-                        }
+                RetroButton {
+                    text: "+ Add persona"
+                    Layout.fillWidth: true
+                    config: root.config
+                    onClicked: {
+                        newPersonaSystem.text = "You are a helpful assistant. System Info:\n- OS: {os}\n- Kernel: {kernel}\n- DE: {de}\n- User: {user}\n- Host: {hostname}\n- Time: {date time}\n\n# Tool Use\nYou can call tools by outputting tool[\"(tool_name)\", \"input1\", \"input2\"].\nThe tool call MUST be at the end of your response.\n\nAvailable tools:\n- tool[\"search\", \"query\"]: Searches the web using SearXNG. Returns top results and text from the first 3.\n- tool[\"getpage\", \"url\", \"prompt\"]: Fetches a URL and uses a separate model to extract info based on the prompt.";
+                        addPersonaPopup.open();
                     }
                 }
             }
         }
-
-        RetroButton {
-            text: "Close"
-            Layout.alignment: Qt.AlignRight
-            onClicked: root.close()
-        }
     }
 
-    // Add Persona Popup
     DarkPopup {
         id: addPersonaPopup
         anchors.centerIn: parent
-        width: 400
-        height: 500
+        width: Math.min(430, parent.width - 32)
+        height: Math.min(560, parent.height - 32)
 
         ScrollView {
             id: addPersonaScrollView
@@ -314,14 +505,14 @@ Popup {
 
             ColumnLayout {
                 width: addPersonaScrollView.availableWidth
-                spacing: 15
+                spacing: 13
 
                 Text {
-                    text: "Add New Persona"
-                    color: "#c5c5c5"
+                    text: "Add persona"
+                    color: root.config.textMain
                     font.family: root.config.fontFamily
-                    font.pixelSize: 16
-                    Layout.fillWidth: true
+                    font.pixelSize: 19
+                    font.weight: Font.DemiBold
                 }
 
                 StyledTextField {
@@ -331,40 +522,72 @@ Popup {
                     placeholderText: "Name"
                 }
 
+                Text {
+                    text: "System prompt"
+                    color: root.config.textMuted
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 13
+                    font.weight: Font.Medium
+                }
+
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 200
-                    color: "#222222"
-                    border.color: "#404040"
+                    Layout.preferredHeight: 210
+                    radius: root.config.controlRadius
+                    color: root.config.nestedSurfaceColor
+                    border.color: root.config.outerBorderColor
+                    border.width: 1
+
                     ScrollView {
                         anchors.fill: parent
+                        anchors.margins: 6
+
                         TextArea {
                             id: newPersonaSystem
-                            padding: 10
-                            placeholderText: "System Prompt"
-                            color: "#c5c5c5"
-                            placeholderTextColor: "#808080"
+                            width: parent.width
+                            padding: 7
+                            placeholderText: "System prompt"
+                            color: root.config.textMain
+                            placeholderTextColor: root.config.textMuted
+                            selectionColor: root.config.accent2
                             font.family: root.config.fontFamily
+                            font.pixelSize: 14
                             wrapMode: Text.WordWrap
                             background: null
                         }
                     }
                 }
 
+                Text {
+                    text: "Personality prompt (optional)"
+                    color: root.config.textMuted
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 13
+                    font.weight: Font.Medium
+                }
+
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 100
-                    color: "#222222"
-                    border.color: "#404040"
+                    Layout.preferredHeight: 110
+                    radius: root.config.controlRadius
+                    color: root.config.nestedSurfaceColor
+                    border.color: root.config.outerBorderColor
+                    border.width: 1
+
                     ScrollView {
                         anchors.fill: parent
+                        anchors.margins: 6
+
                         TextArea {
                             id: newPersonaPersonality
-                            padding: 10
-                            placeholderText: "Personality Prompt (Optional)"
-                            color: "#c5c5c5"
-                            placeholderTextColor: "#808080"
+                            width: parent.width
+                            padding: 7
+                            placeholderText: "Personality prompt"
+                            color: root.config.textMain
+                            placeholderTextColor: root.config.textMuted
+                            selectionColor: root.config.accent2
                             font.family: root.config.fontFamily
+                            font.pixelSize: 14
                             wrapMode: Text.WordWrap
                             background: null
                         }
@@ -373,29 +596,34 @@ Popup {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
-                    Item { Layout.fillWidth: true }
+                    spacing: 9
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
                     RetroButton {
                         text: "Cancel"
+                        config: root.config
                         onClicked: addPersonaPopup.close()
                     }
+
                     RetroButton {
                         text: "Save"
+                        config: root.config
                         onClicked: {
-                            if (newPersonaName.text !== "") {
-                                var ps = JSON.parse(root.settings.personas);
-                                var newP = {
+                            if (newPersonaName.text.trim() !== "") {
+                                var parsedPersonas = JSON.parse(root.settings.personas);
+                                parsedPersonas.push({
                                     id: root.generateIdFn(),
-                                    name: newPersonaName.text,
+                                    name: newPersonaName.text.trim(),
                                     system: newPersonaSystem.text,
                                     personality: newPersonaPersonality.text
-                                };
-                                ps.push(newP);
-                                root.settings.personas = JSON.stringify(ps);
+                                });
+                                root.settings.personas = JSON.stringify(parsedPersonas);
 
-                                // Refresh model
                                 personasModel.clear();
-                                ps.forEach(p => personasModel.append(p));
+                                parsedPersonas.forEach(persona => personasModel.append(persona));
 
                                 newPersonaName.text = "";
                                 newPersonaSystem.text = "";
@@ -409,12 +637,11 @@ Popup {
         }
     }
 
-    // Edit Persona Popup
     DarkPopup {
         id: editPersonaPopup
         anchors.centerIn: parent
-        width: 400
-        height: 500
+        width: Math.min(430, parent.width - 32)
+        height: Math.min(560, parent.height - 32)
 
         property string editingId: ""
 
@@ -426,14 +653,14 @@ Popup {
 
             ColumnLayout {
                 width: editPersonaScrollView.availableWidth
-                spacing: 15
+                spacing: 13
 
                 Text {
-                    text: "Edit Persona"
-                    color: "#c5c5c5"
+                    text: "Edit persona"
+                    color: root.config.textMain
                     font.family: root.config.fontFamily
-                    font.pixelSize: 16
-                    Layout.fillWidth: true
+                    font.pixelSize: 19
+                    font.weight: Font.DemiBold
                 }
 
                 StyledTextField {
@@ -443,40 +670,72 @@ Popup {
                     placeholderText: "Name"
                 }
 
+                Text {
+                    text: "System prompt"
+                    color: root.config.textMuted
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 13
+                    font.weight: Font.Medium
+                }
+
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 200
-                    color: "#222222"
-                    border.color: "#404040"
+                    Layout.preferredHeight: 210
+                    radius: root.config.controlRadius
+                    color: root.config.nestedSurfaceColor
+                    border.color: root.config.outerBorderColor
+                    border.width: 1
+
                     ScrollView {
                         anchors.fill: parent
+                        anchors.margins: 6
+
                         TextArea {
                             id: editPersonaSystem
-                            padding: 10
-                            placeholderText: "System Prompt"
-                            color: "#c5c5c5"
-                            placeholderTextColor: "#808080"
+                            width: parent.width
+                            padding: 7
+                            placeholderText: "System prompt"
+                            color: root.config.textMain
+                            placeholderTextColor: root.config.textMuted
+                            selectionColor: root.config.accent2
                             font.family: root.config.fontFamily
+                            font.pixelSize: 14
                             wrapMode: Text.WordWrap
                             background: null
                         }
                     }
                 }
 
+                Text {
+                    text: "Personality prompt (optional)"
+                    color: root.config.textMuted
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 13
+                    font.weight: Font.Medium
+                }
+
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 100
-                    color: "#222222"
-                    border.color: "#404040"
+                    Layout.preferredHeight: 110
+                    radius: root.config.controlRadius
+                    color: root.config.nestedSurfaceColor
+                    border.color: root.config.outerBorderColor
+                    border.width: 1
+
                     ScrollView {
                         anchors.fill: parent
+                        anchors.margins: 6
+
                         TextArea {
                             id: editPersonaPersonality
-                            padding: 10
-                            placeholderText: "Personality Prompt (Optional)"
-                            color: "#c5c5c5"
-                            placeholderTextColor: "#808080"
+                            width: parent.width
+                            padding: 7
+                            placeholderText: "Personality prompt"
+                            color: root.config.textMain
+                            placeholderTextColor: root.config.textMuted
+                            selectionColor: root.config.accent2
                             font.family: root.config.fontFamily
+                            font.pixelSize: 14
                             wrapMode: Text.WordWrap
                             background: null
                         }
@@ -485,34 +744,39 @@ Popup {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
-                    Item { Layout.fillWidth: true }
+                    spacing: 9
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
                     RetroButton {
                         text: "Cancel"
+                        config: root.config
                         onClicked: editPersonaPopup.close()
                     }
+
                     RetroButton {
                         text: "Save"
+                        config: root.config
                         onClicked: {
-                            if (editPersonaName.text !== "") {
-                                var ps = JSON.parse(root.settings.personas);
-                                var idx = ps.findIndex(p => p.id === editPersonaPopup.editingId);
-                                if (idx !== -1) {
-                                    ps[idx].name = editPersonaName.text;
-                                    ps[idx].system = editPersonaSystem.text;
-                                    ps[idx].personality = editPersonaPersonality.text;
-                                    root.settings.personas = JSON.stringify(ps);
+                            if (editPersonaName.text.trim() !== "") {
+                                var parsedPersonas = JSON.parse(root.settings.personas);
+                                var index = parsedPersonas.findIndex(persona => persona.id === editPersonaPopup.editingId);
+                                if (index !== -1) {
+                                    parsedPersonas[index].name = editPersonaName.text.trim();
+                                    parsedPersonas[index].system = editPersonaSystem.text;
+                                    parsedPersonas[index].personality = editPersonaPersonality.text;
+                                    root.settings.personas = JSON.stringify(parsedPersonas);
 
-                                    // Refresh currentPersona if it was the one edited
                                     if (root.settings.currentPersonaId === editPersonaPopup.editingId) {
-                                        var temp = root.settings.currentPersonaId;
+                                        var selectedId = root.settings.currentPersonaId;
                                         root.settings.currentPersonaId = "";
-                                        root.settings.currentPersonaId = temp;
+                                        root.settings.currentPersonaId = selectedId;
                                     }
 
-                                    // Refresh model
                                     personasModel.clear();
-                                    ps.forEach(p => personasModel.append(p));
+                                    parsedPersonas.forEach(persona => personasModel.append(persona));
 
                                     editPersonaPopup.close();
                                     root.personaEdited();

@@ -17,6 +17,13 @@ PanelWindow {
         id: config
     }
 
+    readonly property alias panelConfig: config
+    readonly property alias settingsStore: settings
+    readonly property alias sessionsModelValue: sessionsModel
+
+    signal settingsPanelRequested()
+    signal chatListPanelRequested()
+
     ApiClient {
         id: apiClient
         onModelsReceived: (models) => {
@@ -147,9 +154,18 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    // Match this namespace in a Hyprland layer rule to enable compositor blur.
+    WlrLayershell.namespace: "aichat_qs"
     exclusiveZone: 0
 
     color: "transparent"
+
+    // Quickshell's background effect requests a compositor-backed blur region.
+    // The region follows the rounded panel while it slides in and out.
+    BackgroundEffect.blurRegion: Region {
+        item: container
+        radius: config.panelRadius
+    }
 
     property bool opened: true
     visible: true
@@ -159,6 +175,10 @@ PanelWindow {
     property string cachedModelsEndpoint: ""
     property string cachedModelsKey: ""
     property var cachedModelsList: []
+
+    function openSettings() {
+        settingsPanelRequested();
+    }
 
     function openModelPicker() {
         modelPickerPopup.open();
@@ -545,53 +565,54 @@ PanelWindow {
     ListModel { id: sessionsModel }
     ListModel { id: modelsModel }
 
-    SettingsPopup {
-        id: settingsPopup
-        settings: settings
-        config: config
-        generateIdFn: root.generateId
-
-        onPersonaSelected: (id) => {
-            settings.currentPersonaId = id;
-        }
-    }
-
     Popup {
         id: modelPickerPopup
-        x: parent.width / 2 - width / 2
-        y: parent.height / 2 - height / 2
-        width: 300
-        height: Math.min(400, modelsModel.count * 30 + 10)
-        padding: 5
-        closePolicy: Popup.CloseOnEscape
+        x: 16
+        y: Math.max(16, parent.height - height - 145)
+        width: Math.min(300, parent.width - 32)
+        height: Math.min(400, modelsModel.count * 38 + 12)
+        padding: 6
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            color: "#1A1A1A"
-            border.color: "#404040"
+            radius: config.controlRadius
+            color: config.surfaceColor
+            border.color: config.outerBorderColor
+            border.width: 1
         }
 
         contentItem: ListView {
             model: modelsModel
+            clip: true
+            spacing: 3
+
             delegate: ItemDelegate {
+                id: modelDelegate
                 width: parent.width
-                height: 30
+                height: 35
+                padding: 10
+
                 contentItem: Text {
-                    text: name
-                    color: "#c5c5c5"
+                    text: modelDelegate.model.name
+                    color: modelDelegate.highlighted ? config.accent1Hover : config.textMain
                     font.family: config.fontFamily
-                    font.pixelSize: 12
+                    font.pixelSize: 13
+                    font.weight: modelDelegate.highlighted ? Font.DemiBold : Font.Normal
                     verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
                 }
+
                 background: Rectangle {
-                    color: hovered ? "#333333" : "transparent"
+                    radius: config.controlRadius
+                    color: modelDelegate.hovered ? config.accent1Hover : "transparent"
                 }
+
                 onClicked: {
-                    config.modelName = name;
-                    settings.lastModel = name;
+                    config.modelName = modelDelegate.model.name;
+                    settings.lastModel = modelDelegate.model.name;
                     modelPickerPopup.close();
                 }
             }
-            clip: true
         }
     }
 
@@ -599,7 +620,11 @@ PanelWindow {
         id: container
         width: parent.width
         height: parent.height
-        color: "black"
+        color: config.surfaceColor
+        radius: config.panelRadius
+        border.color: config.outerBorderColor
+        border.width: 2
+        clip: true
 
         x: root.opened ? 0 : -root.implicitWidth
         Behavior on x {
@@ -634,95 +659,88 @@ PanelWindow {
             }
         }
 
-        ColumnLayout {
+        Item {
+            id: panelForeground
             anchors.fill: parent
-            anchors.margins: 15
-            spacing: 15
 
-            HeaderBar {
-                Layout.fillWidth: true
-                currentPersona: root.currentPersona
-                sideMenuOpen: sideMenu.isOpen
-                settings: settings
-                sideMenu: sideMenu
-                config: config
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: config.outerMargin
+                spacing: 12
 
-                onNewChatRequested: root.createNewSession()
-                onSettingsRequested: settingsPopup.open()
-            }
+                HeaderBar {
+                    Layout.fillWidth: true
+                    currentPersona: root.currentPersona
+                    settings: settings
+                    config: config
 
-            ChatArea {
-                id: chatView
-                chatModel: chatModel
-                config: config
-                isLoading: root.isLoading
-                formatMessageFn: root.formatMessage
-            }
-
-            InputArea {
-                id: inputArea
-                config: config
-                isLoading: root.isLoading
-                attachments: root.attachments
-
-                onAttachmentAdded: (filePath) => {
-                    root.attachments = [...root.attachments, filePath];
-                }
-                onAttachmentRemoved: (index) => {
-                    var newAttachments = [...root.attachments];
-                    newAttachments.splice(index, 1);
-                    root.attachments = newAttachments;
+                    onNewChatRequested: root.createNewSession()
+                    onSettingsPanelRequested: root.settingsPanelRequested()
+                    onChatListPanelRequested: root.chatListPanelRequested()
                 }
 
-                onSendRequested: (text, attachments) => {
-                    root.processAttachments(attachments, function(processedAttachments) {
-                        chatModel.append({
-                            sender: "You",
-                            message: text,
-                            thinking: "",
-                            toolName: "",
-                            toolInput: "",
-                            toolOutput: "",
-                            toolStatus: ""
+                ChatArea {
+                    id: chatView
+                    chatModel: chatModel
+                    config: config
+                    isLoading: root.isLoading
+                    formatMessageFn: root.formatMessage
+                }
+
+                InputArea {
+                    id: inputArea
+                    config: config
+                    isLoading: root.isLoading
+                    attachments: root.attachments
+
+                    onAttachmentAdded: (filePath) => {
+                        root.attachments = [...root.attachments, filePath];
+                    }
+                    onAttachmentRemoved: (index) => {
+                        var newAttachments = [...root.attachments];
+                        newAttachments.splice(index, 1);
+                        root.attachments = newAttachments;
+                    }
+
+                    onSendRequested: (text, attachments) => {
+                        root.processAttachments(attachments, function(processedAttachments) {
+                            chatModel.append({
+                                sender: "You",
+                                message: text,
+                                thinking: "",
+                                toolName: "",
+                                toolInput: "",
+                                toolOutput: "",
+                                toolStatus: ""
+                            });
+                            var userMessage = { role: "user", content: text };
+                            if (processedAttachments.length > 0) {
+                                userMessage.content = [
+                                    { type: "text", text: text },
+                                    ...processedAttachments
+                                ];
+                            }
+                            root.messageHistory = [...root.messageHistory, userMessage];
+                            root.attachments = [];
+                            apiClient.sendMessage(
+                                settings.apiEndpoint,
+                                settings.apiKey,
+                                config.modelName,
+                                root.messageHistory,
+                                config.enableStreaming,
+                                config.temperature
+                            );
                         });
-                        var userMessage = { role: "user", content: text };
-                        if (processedAttachments.length > 0) {
-                            userMessage.content = [
-                                { type: "text", text: text },
-                                ...processedAttachments
-                            ];
-                        }
-                        root.messageHistory = [...root.messageHistory, userMessage];
-                        root.attachments = [];
-                        apiClient.sendMessage(
-                            settings.apiEndpoint,
-                            settings.apiKey,
-                            config.modelName,
-                            root.messageHistory,
-                            config.enableStreaming,
-                            config.temperature
-                        );
-                    });
-                }
-                onStopRequested: () => {
-                    apiClient.stop();
-                }
-                onModelPickerRequested: () => {
-                    root.openModelPicker();
+                    }
+                    onStopRequested: () => {
+                        apiClient.stop();
+                    }
+                    onModelPickerRequested: () => {
+                        root.openModelPicker();
+                    }
                 }
             }
         }
 
-        SideMenu {
-            id: sideMenu
-            settings: settings
-            config: config
-            currentSessionId: root.currentSessionId
-            sessionsModel: sessionsModel
-
-            onLoadSessionRequested: (id) => root.loadSession(id)
-            onNewChatRequested: root.createNewSession()
-            onUpdateSessionsModelRequested: root.updateSessionsModel()
-        }
     }
 }
