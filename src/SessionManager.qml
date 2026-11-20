@@ -9,6 +9,7 @@ QtObject {
     property var config
     property var resolveSystemPromptFn
     property var currentPersona
+    property string _lastSavedHistory: ""
 
     function generateId() {
         return MessageFormatter.generateId();
@@ -16,6 +17,15 @@ QtObject {
 
     function saveCurrentSession(messageHistory) {
         if (currentSessionId === "") return;
+
+        // Skip the full sessions-list rewrite when the current session's
+        // history is unchanged (onMessageHistoryChanged can fire on no-op
+        // ticks, and serializing every session on every message is O(total
+        // history)).
+        var historyStr = JSON.stringify(messageHistory);
+        if (historyStr === _lastSavedHistory)
+            return;
+        _lastSavedHistory = historyStr;
 
         var sessions = JSON.parse(settings.savedSessions);
         var found = false;

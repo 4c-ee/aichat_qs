@@ -216,9 +216,11 @@ PanelWindow {
 
     onModelFilterTextChanged: root.refreshModelFilter()
 
-    property var currentPersona: {
+    property var currentPersona: null
+
+    function computeCurrentPersona() {
         var ps = JSON.parse(settings.personas);
-        return ps.find(p => p.id === settings.currentPersonaId) || ps[0];
+        currentPersona = ps.find(p => p.id === settings.currentPersonaId) || ps[0];
     }
 
     property bool systemInfoReady: false
@@ -367,6 +369,9 @@ PanelWindow {
         }
     }
 
+    onSettingsCurrentPersonaIdChanged: computeCurrentPersona()
+    onSettingsPersonasChanged: computeCurrentPersona()
+
     function generateId() {
         return MessageFormatter.generateId();
     }
@@ -505,6 +510,7 @@ PanelWindow {
 
     Component.onCompleted: {
         config.temperature = settings.temperature;
+        computeCurrentPersona();
 
         if (settings.lastModel !== "") {
             config.modelName = settings.lastModel;
