@@ -77,11 +77,7 @@ Popup {
         root.settings.temperature = root.draftTemperature;
         root.settings.summarizeSearch = root.draftSummarizeSearch;
 
-        root.config.apiEndpoint = root.settings.apiEndpoint;
-        root.config.apiKey = root.settings.apiKey;
-        root.config.searxngUrl = root.settings.searxngUrl;
         root.config.temperature = root.settings.temperature;
-        root.config.summarizeSearch = root.settings.summarizeSearch;
 
         root.saveStatus = "settings saved";
         root.settingsUpdated();

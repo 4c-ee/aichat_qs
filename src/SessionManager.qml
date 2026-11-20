@@ -1,4 +1,5 @@
 import QtQuick
+import "MessageFormatter.js" as MessageFormatter
 
 QtObject {
     id: root
@@ -10,7 +11,7 @@ QtObject {
     property var currentPersona
 
     function generateId() {
-        return Date.now().toString(36) + Math.random().toString(36).substring(2);
+        return MessageFormatter.generateId();
     }
 
     function saveCurrentSession(messageHistory) {

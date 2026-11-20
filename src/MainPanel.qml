@@ -19,6 +19,7 @@ PanelWindow {
     readonly property alias panelConfig: config
     readonly property alias settingsStore: settings
     readonly property alias sessionsModelValue: sessionsModel
+    readonly property alias sessionManager: sessionManager
 
     signal settingsPanelRequested()
     signal chatListPanelRequested()
@@ -367,7 +368,7 @@ PanelWindow {
     }
 
     function generateId() {
-        return Date.now().toString(36) + Math.random().toString(36).substring(2);
+        return MessageFormatter.generateId();
     }
 
     function saveCurrentSession() {
@@ -503,11 +504,7 @@ PanelWindow {
     }
 
     Component.onCompleted: {
-        config.apiEndpoint = settings.apiEndpoint;
-        config.apiKey = settings.apiKey;
         config.temperature = settings.temperature;
-        config.searxngUrl = settings.searxngUrl;
-        config.summarizeSearch = settings.summarizeSearch;
 
         if (settings.lastModel !== "") {
             config.modelName = settings.lastModel;

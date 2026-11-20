@@ -68,6 +68,7 @@ ShellRoot {
         config: mainPanel.panelConfig
         settings: mainPanel.settingsStore
         sessionsModel: mainPanel.sessionsModelValue
+        sessionManager: mainPanel.sessionManager
         generateIdFn: mainPanel.generateId
         currentSessionId: mainPanel.currentSessionId
         panelOpened: mainPanel.opened

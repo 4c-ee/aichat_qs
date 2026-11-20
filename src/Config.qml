@@ -4,13 +4,9 @@ QtObject {
     id: root
 
     // API configuration
-    property string apiEndpoint: "http://localhost:11434/v1"
-    property string apiKey: ""
     property string modelName: ""
     property real temperature: 0.7
     property bool enableStreaming: true
-    property string searxngUrl: "http://localhost:8080"
-    property bool summarizeSearch: true
 
     // Typography
     property string fontFamily: "Google Sans Flex"

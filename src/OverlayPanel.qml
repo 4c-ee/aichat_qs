@@ -8,6 +8,7 @@ PanelWindow {
     property var config
     property var settings
     property var sessionsModel
+    property var sessionManager
     property var generateIdFn
     property string currentSessionId
     property bool settingsActive: false
@@ -139,6 +140,7 @@ PanelWindow {
             height: chatListLayer.height
             settings: root.settings
             config: root.config
+            sessionManager: root.sessionManager
             currentSessionId: root.currentSessionId
             sessionsModel: root.sessionsModel
 

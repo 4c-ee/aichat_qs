@@ -9,6 +9,7 @@ Item {
     property var settings
     property var sessionsModel
     property var config
+    property var sessionManager
 
     signal loadSessionRequested(string id)
     signal newChatRequested()
@@ -222,18 +223,13 @@ Item {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    var sessions = JSON.parse(root.settings.savedSessions);
-                                    var index = sessions.findIndex(s => s.id === model.id);
-                                    if (index !== -1) {
-                                        sessions.splice(index, 1);
-                                        root.settings.savedSessions = JSON.stringify(sessions);
-                                        root.updateSessionsModelRequested();
-                                        if (root.currentSessionId === model.id) {
-                                            if (sessions.length > 0)
-                                                root.loadSessionRequested(sessions[0].id);
-                                            else
-                                                root.newChatRequested();
-                                        }
+                                    var sessions = root.sessionManager.deleteSession(model.id);
+                                    root.updateSessionsModelRequested();
+                                    if (root.currentSessionId === model.id) {
+                                        if (sessions.length > 0)
+                                            root.loadSessionRequested(sessions[0].id);
+                                        else
+                                            root.newChatRequested();
                                     }
                                 }
                             }
