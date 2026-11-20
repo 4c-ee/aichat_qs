@@ -141,6 +141,26 @@ PanelWindow {
         backgroundApiClient: backgroundApiClient
     }
 
+    SystemInfo {
+        id: systemInfo
+
+        onFetched: {
+            // System info probe finished: create the initial session or
+            // refresh the system message with the probed date/time/etc.
+            if (currentSessionId === "") {
+                var session = sessionManager.createNewSession();
+                currentSessionId = session.id;
+                root.messageHistory = session.history;
+            } else if (messageHistory.length > 0 && messageHistory[0].role === "system") {
+                var resolvedSystem = systemInfo.resolveSystemPrompt(currentPersona.system) + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
+                if (messageHistory[0].content !== resolvedSystem) {
+                    messageHistory[0].content = resolvedSystem;
+                    sessionManager.saveCurrentSession(messageHistory);
+                }
+            }
+        }
+    }
+
     anchors {
         left: true
         top: true
@@ -223,34 +243,6 @@ PanelWindow {
         currentPersona = ps.find(p => p.id === settings.currentPersonaId) || ps[0];
     }
 
-    property bool systemInfoReady: false
-    property var systemInfoMap: ({})
-
-    function resolveSystemPrompt(systemText) {
-        if (!systemText) return "";
-        var text = systemText;
-        var info = root.systemInfoMap || {};
-
-        var dateVal = info.DATE || "";
-        var userVal = info.USER || "";
-        var hostVal = info.HOSTNAME || "";
-        var osVal = info.OS || "";
-        var deVal = info.DE || "N/A";
-        var kernelVal = info.KERNEL || "";
-
-        text = text.replace(/\{date time\}/gi, dateVal)
-                   .replace(/\{datetime\}/gi, dateVal)
-                   .replace(/\{date\}/gi, dateVal)
-                   .replace(/\{user\}/gi, userVal)
-                   .replace(/\{hostname\}/gi, hostVal)
-                   .replace(/\{os\}/gi, osVal)
-                   .replace(/\{de\}/gi, deVal)
-                   .replace(/\{desktop\}/gi, deVal)
-                   .replace(/\{kernel\}/gi, kernelVal);
-
-        return MessageFormatter.stripLegacyToolInstructions(text);
-    }
-
     // Remove data produced by the disconnected legacy text-tool protocol from
     // histories that were saved before the protocol was unhooked.
     function sanitizeLegacyToolHistory(history) {
@@ -289,59 +281,12 @@ PanelWindow {
         return cleaned;
     }
 
-    function fetchSystemInfo() {
-        var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
-        proc.command = ["sh", "-c", "echo 'DATE:' $(date); echo 'USER:' $USER; echo 'HOSTNAME:' $HOSTNAME; uname -r | sed 's/^/KERNEL: /'; cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d= -f2 | sed 's/\"//g' | sed 's/^/OS: /'; echo $XDG_CURRENT_DESKTOP | grep -v '^$' | sed 's/^/DE: /'"];
-
-        var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
-        proc.stdout = collector;
-
-        collector.streamFinished.connect(function() {
-            var lines = collector.text.split('\n');
-            var info = {};
-            lines.forEach(function(line) {
-                var parts = line.split(':', 2);
-                if (parts.length === 2) {
-                    var key = parts[0].trim();
-                    var value = parts[1].trim();
-                    if (key && value) info[key] = value;
-                }
-            });
-
-            var infoParts = [];
-            if (info.DATE) infoParts.push("Current Date/Time: " + info.DATE);
-            if (info.USER) infoParts.push("User: " + info.USER);
-            if (info.HOSTNAME) infoParts.push("Hostname: " + info.HOSTNAME);
-            if (info.OS) infoParts.push("OS: " + info.OS);
-            if (info.DE) infoParts.push("Desktop Environment: " + info.DE);
-            if (info.KERNEL) infoParts.push("Kernel: " + info.KERNEL);
-
-            root.systemInfoMap = info;
-            root.systemInfoReady = true;
-
-            if (currentSessionId === "") {
-                var session = sessionManager.createNewSession();
-                currentSessionId = session.id;
-                root.messageHistory = session.history;
-            } else if (messageHistory.length > 0 && messageHistory[0].role === "system") {
-                var resolvedSystem = resolveSystemPrompt(currentPersona.system) + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
-                if (messageHistory[0].content !== resolvedSystem) {
-                    messageHistory[0].content = resolvedSystem;
-                    sessionManager.saveCurrentSession(messageHistory);
-                }
-            }
-            proc.destroy();
-        });
-
-        proc.running = true;
-    }
-
     SessionManager {
         id: sessionManager
         settings: settings
         currentSessionId: root.currentSessionId
         config: config
-        resolveSystemPromptFn: root.resolveSystemPrompt
+        resolveSystemPromptFn: systemInfo.resolveSystemPrompt
         currentPersona: root.currentPersona
     }
 
@@ -364,11 +309,11 @@ PanelWindow {
     onCurrentPersonaChanged: {
         // Guard against switching personas before system info is ready,
         // which would bake empty {os}, {kernel} etc. into the stored system message.
-        if (!systemInfoReady)
+        if (!systemInfo.systemInfoReady)
             return;
 
         if (messageHistory.length > 0 && messageHistory[0].role === "system") {
-            var newSystem = resolveSystemPrompt(currentPersona.system) + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
+            var newSystem = systemInfo.resolveSystemPrompt(currentPersona.system) + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
             messageHistory[0].content = newSystem;
             sessionManager.saveCurrentSession(messageHistory);
         }
@@ -559,7 +504,7 @@ PanelWindow {
             loadSession(settings.lastSessionId);
         }
 
-        fetchSystemInfo();
+        systemInfo.fetch();
     }
 
     onMessageHistoryChanged: {
@@ -574,7 +519,7 @@ PanelWindow {
             // Refresh date/time in system prompt (fetchSystemInfo only runs
             // once at startup; a panel left open overnight would tell the
             // model the wrong date).
-            fetchSystemInfo();
+            systemInfo.fetch();
         }
     }
 
