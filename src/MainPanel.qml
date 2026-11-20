@@ -571,6 +571,10 @@ PanelWindow {
         if (opened) {
             root.visible = true;
             inputArea.forceFocus();
+            // Refresh date/time in system prompt (fetchSystemInfo only runs
+            // once at startup; a panel left open overnight would tell the
+            // model the wrong date).
+            fetchSystemInfo();
         }
     }
 

@@ -898,11 +898,6 @@ Popup {
                                     parsedPersonas[index].personality = editPersonaPersonality.text;
                                     root.settings.personas = JSON.stringify(parsedPersonas);
 
-                                    if (root.settings.currentPersonaId === editPersonaPopup.editingId) {
-                                        var selectedId = root.settings.currentPersonaId;
-                                        root.settings.currentPersonaId = "";
-                                        root.settings.currentPersonaId = selectedId;
-                                    }
                                     root.computeCurrentPersonaFn();
 
                                     personasModel.clear();
