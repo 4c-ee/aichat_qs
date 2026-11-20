@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 
 Popup {
@@ -29,7 +30,20 @@ Popup {
     modal: true
     focus: true
     padding: 0
-    closePolicy: Popup.CloseOnEscape
+    closePolicy: Popup.NoAutoClose
+
+    Shortcut {
+        sequence: "Escape"
+        onActivated: root.requestClose()
+    }
+
+    function requestClose() {
+        if (root.saveStatus === "unsaved changes") {
+            discardConfirm.open();
+        } else {
+            root.close();
+        }
+    }
 
     onOpened: {
         root.loadDraft();
@@ -131,7 +145,7 @@ Popup {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.close()
+                    onClicked: root.requestClose()
                 }
             }
         }
@@ -898,6 +912,57 @@ Popup {
                                     root.personaEdited();
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        DarkPopup {
+            id: discardConfirm
+            modal: true
+            focus: true
+            width: Math.min(400, parent.width - 32)
+            height: Math.min(200, parent.height - 32)
+
+            ColumnLayout {
+                anchors.centerIn: parent
+                spacing: 16
+
+                Text {
+                    text: "Discard unsaved changes?"
+                    color: root.config.textMain
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                    wrapMode: Text.Word
+                }
+
+                Text {
+                    text: "Your API key and other settings will be lost."
+                    color: root.config.textMuted
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
+
+                RowLayout {
+                    spacing: 9
+
+                    Item { Layout.fillWidth: true }
+
+                    RetroButton {
+                        text: "Cancel"
+                        config: root.config
+                        onClicked: discardConfirm.close()
+                    }
+
+                    RetroButton {
+                        text: "Discard"
+                        config: root.config
+                        onClicked: {
+                            discardConfirm.close();
+                            root.close();
                         }
                     }
                 }

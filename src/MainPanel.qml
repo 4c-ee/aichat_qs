@@ -352,7 +352,7 @@ PanelWindow {
         property string personas: '[{"id":"default","name":"Assistant","system":"You are a helpful assistant. System Info:\\n- OS: {os}\\n- Kernel: {kernel}\\n- DE: {de}\\n- User: {user}\\n- Host: {hostname}\\n- Time: {date time}","personality":""}]'
         property string currentPersonaId: "default"
         property string apiEndpoint: "http://localhost:11434/v1"
-        property string apiKey: "wawa"
+        property string apiKey: ""
         property real temperature: 0.7
         property string searxngUrl: "http://localhost:8080"
         property bool summarizeSearch: true
@@ -449,6 +449,7 @@ PanelWindow {
             }
             if (session.temperature !== undefined) {
                 config.temperature = session.temperature;
+                settings.temperature = session.temperature;
             }
             if (session.personaId) {
                 settings.currentPersonaId = session.personaId;
@@ -670,7 +671,7 @@ PanelWindow {
                         results[index] = {
                             type: "input_audio",
                             input_audio: {
-                                data: collectorAudio.text,
+                                data: collectorAudio.text.trim(),
                                 format: format
                             }
                         };

@@ -4,9 +4,9 @@ QtObject {
     id: root
 
     // API configuration
-    property string apiEndpoint: "http://localhost:11435/v1"
-    property string apiKey: "wawa"
-    property string modelName: "Llama 3 8B"
+    property string apiEndpoint: "http://localhost:11434/v1"
+    property string apiKey: ""
+    property string modelName: ""
     property real temperature: 0.7
     property bool enableStreaming: true
     property string searxngUrl: "http://localhost:8080"

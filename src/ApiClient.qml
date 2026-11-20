@@ -216,6 +216,7 @@ Item {
 
     function sendMessage(endpoint, apiKey, model, messages, stream = false, temperature = null) {
         if (root.activeXhr) {
+            root.activeXhr.userStopped = true;
             root.activeXhr.abort();
             root.activeXhr = null;
         }
