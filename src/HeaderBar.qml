@@ -40,7 +40,7 @@ RowLayout {
             anchors.centerIn: parent
             width: 22
             height: 22
-            source: menuHover.hovered ? "menu-hover.svg" : "menu.svg"
+            source: menuHover.hovered ? "svgs/menu-hover.svg" : "svgs/menu.svg"
             sourceSize: Qt.size(22, 22)
             fillMode: Image.PreserveAspectFit
         }
@@ -119,7 +119,7 @@ RowLayout {
             anchors.centerIn: parent
             width: 23
             height: 23
-            source: settingsHover.hovered ? "sliders-hover.svg" : "sliders.svg"
+            source: settingsHover.hovered ? "svgs/sliders-hover.svg" : "svgs/sliders.svg"
             sourceSize: Qt.size(23, 23)
             fillMode: Image.PreserveAspectFit
         }

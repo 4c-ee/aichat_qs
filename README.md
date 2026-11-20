@@ -7,6 +7,8 @@ A specialized quick-access AI chat panel for Arch Linux and Hyprland, built with
 - **AI Integration**: Supports OpenAI-compatible endpoints.
 - **Multimedia Support**: Drag and drop images, audio, and files.
 - **Session Persistence**: Chat history is saved across restarts.
+- **Message Branching**: Retry a user turn or fork a conversation from an assistant response.
+- **Model Filtering**: Filter the endpoint's model list before switching models.
 - **Markdown Support**: Basic rendering of bold, italic, and code blocks.
 - **SearXNG integration**: Ask your AI to search the web and recieve summarized answers.
 - **Wayland Optimized**: Uses Layer Shell for proper placement and focus.
@@ -41,4 +43,6 @@ A specialized quick-access AI chat panel for Arch Linux and Hyprland, built with
 ## Advanced
 - **Drag and Drop**: Drag files onto the panel to attach them.
 - **Clear Chat**: Use the "Clear" button to reset the current session.
+- **Retry**: Use the retry action on a user message to remove later turns and regenerate that response.
+- **Fork**: Use the fork action on an assistant message to save a new session ending at that response.
 - **Attachments**: Images are sent as multimodal content (if supported by the model).

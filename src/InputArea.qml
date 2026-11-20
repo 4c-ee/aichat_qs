@@ -160,7 +160,7 @@ ColumnLayout {
                         Image {
                             width: 14
                             height: 14
-                            source: root.modelPickerOpen ? "chevron-down.svg" : "chevron-up.svg"
+                            source: root.modelPickerOpen ? "svgs/chevron-down.svg" : "svgs/chevron-up.svg"
                             sourceSize: Qt.size(14, 14)
                             fillMode: Image.PreserveAspectFit
                         }
@@ -197,7 +197,7 @@ ColumnLayout {
                         anchors.centerIn: parent
                         width: 15
                         height: 20
-                        source: attachmentMouseArea.containsMouse ? "paperclip-hover.svg" : "paperclip.svg"
+                        source: attachmentMouseArea.containsMouse ? "svgs/paperclip-hover.svg" : "svgs/paperclip.svg"
                         sourceSize: Qt.size(15, 20)
                         fillMode: Image.PreserveAspectFit
                     }

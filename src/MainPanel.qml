@@ -28,12 +28,8 @@ PanelWindow {
     ApiClient {
         id: apiClient
         onModelsReceived: (models) => {
-            modelsModel.clear();
-            models.forEach(modelId => modelsModel.append({
-                modelId: modelId,
-                displayName: modelId
-            }));
             root.cachedModelsList = models;
+            root.refreshModelFilter();
             root.cachedModelsEndpoint = settings.apiEndpoint.trim();
             root.cachedModelsKey = settings.apiKey.trim();
             root.modelsFetched = true;
@@ -41,27 +37,32 @@ PanelWindow {
         }
         onModelsFailed: (error) => {
             root.modelsFetched = false;
+            root.cachedModelsList = [];
+            root.refreshModelFilter();
             root.modelPickerStatus = error;
         }
         onResponseReceived: (response, reasoning) => {
             root.isLoading = false;
             var wasAtEnd = chatView.atYEnd;
+            var assistantMsg = { role: "assistant", content: response };
+            if (reasoning) assistantMsg.reasoning = reasoning;
+            root.messageHistory = [...root.messageHistory, assistantMsg];
             chatModel.append({
                 sender: "ai",
                 message: response,
                 thinking: reasoning || "",
+                historyIndex: root.messageHistory.length - 1,
                 toolName: "",
                 toolInput: "",
                 toolOutput: "",
                 toolStatus: ""
             });
-            var assistantMsg = { role: "assistant", content: response };
-            if (reasoning) assistantMsg.reasoning = reasoning;
-            root.messageHistory = [...root.messageHistory, assistantMsg];
+            root.assistantResponseStarted = false;
             if (wasAtEnd) chatView.positionViewAtEnd();
         }
         onResponseChunk: (chunk) => {
             var wasAtEnd = chatView.atYEnd;
+            root.assistantResponseStarted = true;
             if (chatModel.count > 0 && chatModel.get(chatModel.count - 1).sender === "ai") {
                 var lastIndex = chatModel.count - 1;
                 var lastItem = chatModel.get(lastIndex);
@@ -71,6 +72,7 @@ PanelWindow {
                     sender: "ai",
                     message: chunk,
                     thinking: "",
+                    historyIndex: -1,
                     toolName: "",
                     toolInput: "",
                     toolOutput: "",
@@ -81,6 +83,7 @@ PanelWindow {
         }
         onThinkingChunk: (chunk) => {
             var wasAtEnd = chatView.atYEnd;
+            root.assistantResponseStarted = true;
             if (chatModel.count > 0 && chatModel.get(chatModel.count - 1).sender === "ai") {
                 var lastIndex = chatModel.count - 1;
                 var lastItem = chatModel.get(lastIndex);
@@ -90,6 +93,7 @@ PanelWindow {
                     sender: "ai",
                     message: "",
                     thinking: chunk,
+                    historyIndex: -1,
                     toolName: "",
                     toolInput: "",
                     toolOutput: "",
@@ -108,10 +112,12 @@ PanelWindow {
         }
         onErrorOccurred: (error) => {
             root.isLoading = false;
+            root.savePartialAssistantMessage();
             var wasAtEnd = chatView.atYEnd;
             chatModel.append({
                 sender: "system",
                 message: "Error: " + error,
+                historyIndex: -1,
                 toolName: "",
                 toolInput: "",
                 toolOutput: "",
@@ -168,6 +174,8 @@ PanelWindow {
     property var cachedModelsList: []
     property bool modelsFetched: false
     property string modelPickerStatus: ""
+    property string modelFilterText: ""
+    property bool assistantResponseStarted: false
 
     function openSettings() {
         settingsPanelRequested();
@@ -179,12 +187,15 @@ PanelWindow {
             return;
         }
 
+        root.modelFilterText = "";
         modelPickerPopup.open();
+        modelFilterField.forceActiveFocus();
         var endpoint = settings.apiEndpoint.trim();
         var key = settings.apiKey.trim();
         if (root.cachedModelsEndpoint !== endpoint || root.cachedModelsKey !== key || !root.modelsFetched) {
-            modelsModel.clear();
+            filteredModelsModel.clear();
             root.cachedModelsList = [];
+            root.refreshModelFilter();
             root.modelsFetched = false;
             root.modelPickerStatus = "Loading models...";
             apiClient.getModels(endpoint, key);
@@ -192,6 +203,22 @@ PanelWindow {
             console.log("Using cached models list");
         }
     }
+
+    function refreshModelFilter() {
+        filteredModelsModel.clear();
+        var filter = root.modelFilterText.trim().toLowerCase();
+        root.cachedModelsList.forEach(modelId => {
+            var modelName = String(modelId);
+            if (filter === "" || modelName.toLowerCase().indexOf(filter) !== -1) {
+                filteredModelsModel.append({
+                    modelId: modelName,
+                    displayName: modelName
+                });
+            }
+        });
+    }
+
+    onModelFilterTextChanged: root.refreshModelFilter()
 
     property var currentPersona: {
         var ps = JSON.parse(settings.personas);
@@ -354,6 +381,67 @@ PanelWindow {
         sessionManager.saveCurrentSession(messageHistory);
     }
 
+    function rebuildChatModel(history) {
+        chatModel.clear();
+        history.forEach((msg, index) => {
+            if (msg.role !== "user" && msg.role !== "assistant")
+                return;
+
+            chatModel.append({
+                sender: msg.role === "user" ? "you" : "ai",
+                message: MessageFormatter.contentToString(msg.content),
+                thinking: msg.reasoning || "",
+                historyIndex: index,
+                toolName: "",
+                toolInput: "",
+                toolOutput: "",
+                toolStatus: ""
+            });
+        });
+        chatView.positionViewAtEnd();
+    }
+
+    function retryMessage(historyIndex) {
+        if (root.isLoading || historyIndex < 0 || historyIndex >= root.messageHistory.length)
+            return;
+
+        var userMessage = root.messageHistory[historyIndex];
+        if (!userMessage || userMessage.role !== "user")
+            return;
+
+        var retryHistory = root.messageHistory.slice(0, historyIndex + 1);
+        root.messageHistory = retryHistory;
+        root.rebuildChatModel(retryHistory);
+        root.assistantResponseStarted = false;
+        root.isLoading = true;
+        apiClient.sendMessage(
+            settings.apiEndpoint,
+            settings.apiKey,
+            config.modelName,
+            root.messageHistory,
+            config.enableStreaming,
+            config.temperature
+        );
+    }
+
+    function forkMessage(historyIndex) {
+        if (root.isLoading || historyIndex < 0 || historyIndex >= root.messageHistory.length)
+            return;
+
+        var assistantMessage = root.messageHistory[historyIndex];
+        if (!assistantMessage || assistantMessage.role !== "assistant")
+            return;
+
+        var forkHistory = root.messageHistory.slice(0, historyIndex + 1);
+        var forkId = root.generateId();
+        currentSessionId = forkId;
+        settings.lastSessionId = forkId;
+        root.messageHistory = forkHistory;
+        root.rebuildChatModel(forkHistory);
+        sessionManager.saveCurrentSession(forkHistory);
+        updateSessionsModel();
+    }
+
     function loadSession(id) {
         var session = sessionManager.loadSession(id);
         if (session) {
@@ -373,23 +461,7 @@ PanelWindow {
                 settings.currentPersonaId = session.personaId;
             }
 
-            chatModel.clear();
-            sanitizedHistory.forEach(msg => {
-                if (msg.role !== "system") {
-                    var displayContent = MessageFormatter.contentToString(msg.content);
-
-                    chatModel.append({
-                        sender: msg.role === "user" ? "you" : "ai",
-                        message: displayContent,
-                        thinking: msg.reasoning || "",
-                        toolName: "",
-                        toolInput: "",
-                        toolOutput: "",
-                        toolStatus: ""
-                    });
-                }
-            });
-            chatView.positionViewAtEnd();
+            root.rebuildChatModel(sanitizedHistory);
         }
     }
 
@@ -511,7 +583,7 @@ PanelWindow {
     }
 
     function savePartialAssistantMessage() {
-        if (chatModel.count === 0)
+        if (!root.assistantResponseStarted || chatModel.count === 0)
             return;
 
         var lastIndex = chatModel.count - 1;
@@ -522,6 +594,8 @@ PanelWindow {
         var assistantMsg = { role: "assistant", content: lastItem.message };
         if (lastItem.thinking) assistantMsg.reasoning = lastItem.thinking;
         root.messageHistory = [...root.messageHistory, assistantMsg];
+        chatModel.setProperty(lastIndex, "historyIndex", root.messageHistory.length - 1);
+        root.assistantResponseStarted = false;
     }
 
     function contentToString(content) {
@@ -659,7 +733,7 @@ PanelWindow {
 
     ListModel { id: chatModel }
     ListModel { id: sessionsModel }
-    ListModel { id: modelsModel }
+    ListModel { id: filteredModelsModel }
 
     Popup {
         id: modelPickerPopup
@@ -667,7 +741,8 @@ PanelWindow {
         x: 0
         y: -height - 6
         width: Math.min(300, root.implicitWidth - 32)
-        height: Math.min(400, Math.max(76, modelsModel.count * 38 + (root.modelPickerStatus !== "" ? 48 : 12)))
+        height: Math.min(440, Math.max(110, 48 + filteredModelsModel.count * 38
+            + (root.modelPickerStatus !== "" ? 48 : 12)))
         padding: 6
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
 
@@ -681,6 +756,15 @@ PanelWindow {
         contentItem: ColumnLayout {
             spacing: 4
 
+            StyledTextField {
+                id: modelFilterField
+                Layout.fillWidth: true
+                config: config
+                placeholderText: "Filter models..."
+                text: root.modelFilterText
+                onTextEdited: root.modelFilterText = text
+            }
+
             Text {
                 Layout.fillWidth: true
                 visible: root.modelPickerStatus !== ""
@@ -691,10 +775,21 @@ PanelWindow {
                 wrapMode: Text.WordWrap
             }
 
+            Text {
+                Layout.fillWidth: true
+                visible: root.modelFilterText.trim() !== ""
+                    && root.cachedModelsList.length > 0
+                    && filteredModelsModel.count === 0
+                text: "No models match this filter."
+                color: config.textMuted
+                font.family: config.fontFamily
+                font.pixelSize: 12
+            }
+
             ListView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                model: modelsModel
+                model: filteredModelsModel
                 clip: true
                 spacing: 3
 
@@ -804,6 +899,9 @@ PanelWindow {
                     config: config
                     isLoading: root.isLoading
                     formatMessageFn: root.formatMessage
+
+                    onRetryRequested: (historyIndex) => root.retryMessage(historyIndex)
+                    onForkRequested: (historyIndex) => root.forkMessage(historyIndex)
                 }
 
                 InputArea {
@@ -824,15 +922,6 @@ PanelWindow {
 
                     onSendRequested: (text, attachments) => {
                         root.processAttachments(attachments, function(processedAttachments) {
-                            chatModel.append({
-                                sender: "you",
-                                message: text,
-                                thinking: "",
-                                toolName: "",
-                                toolInput: "",
-                                toolOutput: "",
-                                toolStatus: ""
-                            });
                             var userMessage = { role: "user", content: text };
                             if (processedAttachments.length > 0) {
                                 userMessage.content = [
@@ -841,7 +930,18 @@ PanelWindow {
                                 ];
                             }
                             root.messageHistory = [...root.messageHistory, userMessage];
+                            chatModel.append({
+                                sender: "you",
+                                message: text,
+                                thinking: "",
+                                historyIndex: root.messageHistory.length - 1,
+                                toolName: "",
+                                toolInput: "",
+                                toolOutput: "",
+                                toolStatus: ""
+                            });
                             root.attachments = [];
+                            root.assistantResponseStarted = false;
                             root.isLoading = true;
                             chatView.positionViewAtEnd();
                             apiClient.sendMessage(

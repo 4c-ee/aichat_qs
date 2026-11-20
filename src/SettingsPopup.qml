@@ -363,7 +363,7 @@ Popup {
                             Image {
                                 width: 16
                                 height: 16
-                                source: root.searxngExpanded ? "chevron-up.svg" : "chevron-down.svg"
+                                source: root.searxngExpanded ? "svgs/chevron-up.svg" : "svgs/chevron-down.svg"
                                 sourceSize: Qt.size(16, 16)
                                 fillMode: Image.PreserveAspectFit
                             }

@@ -10,6 +10,9 @@ ListView {
     property bool isLoading
     property var formatMessageFn
 
+    signal retryRequested(int historyIndex)
+    signal forkRequested(int historyIndex)
+
     model: chatModel
 
     Layout.fillWidth: true
@@ -41,13 +44,32 @@ ListView {
                 anchors.margins: 15
                 spacing: 4
 
-                Text {
+                RowLayout {
                     Layout.fillWidth: true
-                    text: "you"
-                    color: root.config.textMuted
-                    font.family: root.config.fontFamily
-                    font.pixelSize: 14
-                    font.weight: Font.DemiBold
+                    spacing: 6
+
+                    Text {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.alignment: Qt.AlignVCenter
+                        text: "you"
+                        color: root.config.textMuted
+                        font.family: root.config.fontFamily
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                    }
+
+                    MessageActionButton {
+                        Layout.alignment: Qt.AlignVCenter
+                        iconSource: "svgs/retry.svg"
+                        hoverIconSource: "svgs/retry-hover.svg"
+                        tooltipText: "Retry this response"
+                        config: root.config
+                        enabled: !root.isLoading
+                        onClicked: root.retryRequested(model.historyIndex)
+                    }
                 }
 
                 Text {
@@ -59,6 +81,7 @@ ListView {
                     wrapMode: Text.WordWrap
                     textFormat: Text.PlainText
                 }
+
             }
         }
 
@@ -91,7 +114,7 @@ ListView {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 14
                         height: 14
-                        source: thoughtCard.expanded ? "chevron-up.svg" : "chevron-down.svg"
+                        source: thoughtCard.expanded ? "svgs/chevron-up.svg" : "svgs/chevron-down.svg"
                         sourceSize: Qt.size(14, 14)
                         fillMode: Image.PreserveAspectFit
                         scale: thoughtMouseArea.pressed ? 0.86 : 1.0
@@ -173,7 +196,7 @@ ListView {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 14
                                 height: 14
-                                source: toolCard.expanded ? "chevron-up.svg" : "chevron-down.svg"
+                                source: toolCard.expanded ? "svgs/chevron-up.svg" : "svgs/chevron-down.svg"
                                 sourceSize: Qt.size(14, 14)
                                 fillMode: Image.PreserveAspectFit
                             }
@@ -269,13 +292,32 @@ ListView {
                 anchors.margins: 15
                 spacing: 6
 
-                Text {
+                RowLayout {
                     Layout.fillWidth: true
-                    text: root.config.modelName
-                    color: root.config.textMuted
-                    font.family: root.config.fontFamily
-                    font.pixelSize: 14
-                    font.weight: Font.DemiBold
+                    spacing: 6
+
+                    Text {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.alignment: Qt.AlignVCenter
+                        text: root.config.modelName
+                        color: root.config.textMuted
+                        font.family: root.config.fontFamily
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                    }
+
+                    MessageActionButton {
+                        Layout.alignment: Qt.AlignVCenter
+                        iconSource: "svgs/fork.svg"
+                        hoverIconSource: "svgs/fork-hover.svg"
+                        tooltipText: "Fork conversation here"
+                        config: root.config
+                        enabled: !root.isLoading && model.historyIndex >= 0
+                        onClicked: root.forkRequested(model.historyIndex)
+                    }
                 }
 
                 TextEdit {
@@ -290,6 +332,7 @@ ListView {
                     selectByMouse: true
                     readOnly: true
                 }
+
             }
         }
 
