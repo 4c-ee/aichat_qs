@@ -616,6 +616,7 @@ Popup {
 
     DarkPopup {
         id: addPersonaPopup
+        config: root.config
         anchors.centerIn: parent
         width: Math.min(430, parent.width - 32)
         height: Math.min(560, parent.height - 32)
@@ -763,6 +764,7 @@ Popup {
 
     DarkPopup {
         id: editPersonaPopup
+        config: root.config
         anchors.centerIn: parent
         width: Math.min(430, parent.width - 32)
         height: Math.min(560, parent.height - 32)
@@ -909,6 +911,7 @@ Popup {
 
         DarkPopup {
             id: discardConfirm
+            config: root.config
             modal: true
             focus: true
             width: Math.min(400, parent.width - 32)
