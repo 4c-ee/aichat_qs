@@ -270,6 +270,16 @@ PanelWindow {
         property bool summarizeSearch: true
     }
 
+    // Keep the currentPersona cache consistent even if currentPersonaId is
+    // mutated from somewhere other than the usual call sites, so the cached
+    // persona can never go stale silently.
+    Connections {
+        target: settings
+        function onCurrentPersonaIdChanged() {
+            root.computeCurrentPersona();
+        }
+    }
+
     onCurrentPersonaChanged: {
         // Guard against switching personas before system info is ready,
         // which would bake empty {os}, {kernel} etc. into the stored system message.

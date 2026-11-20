@@ -7,7 +7,6 @@ QtObject {
     // Process a list of attachment file paths into API content parts.
     // Results are delivered via callback(array) once all files are processed.
     function process(files, callback) {
-        console.log("Processing attachments:", files.length);
         if (files.length === 0) {
             callback([]);
             return;
@@ -18,15 +17,12 @@ QtObject {
 
         function checkCompletion() {
             completed++;
-            console.log("Attachment progress:", completed, "/", files.length);
             if (completed === files.length) {
-                console.log("All attachments processed. Count:", results.filter(r => r !== undefined).length);
                 callback(results.filter(r => r !== undefined));
             }
         }
 
         files.forEach((file, index) => {
-            console.log("Processing file:", file);
             if (file.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
                 var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
                 proc.command = ["base64", "-w", "0", file];
@@ -48,7 +44,6 @@ QtObject {
                         else if (file.match(/\.gif$/i)) mimeType = "image/gif";
                         else if (file.match(/\.webp$/i)) mimeType = "image/webp";
 
-                        console.log("Encoded image:", file, "size:", encodedData.length);
                         results[index] = {
                             type: "image_url",
                             image_url: {
