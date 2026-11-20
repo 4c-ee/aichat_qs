@@ -11,6 +11,10 @@ QtObject {
     property var currentPersona
     property string _lastSavedHistory: ""
 
+    // Cap the retained session list so the INI-backed savedSessions string
+    // cannot grow without bound.
+    property int maxSavedSessions: 50
+
     function generateId() {
         return MessageFormatter.generateId();
     }
@@ -69,6 +73,11 @@ QtObject {
                 personaId: settings.currentPersonaId
             });
         }
+
+        // Drop the oldest sessions once the cap is exceeded (sessions are
+        // newest-first, so pop() removes the oldest).
+        while (sessions.length > maxSavedSessions)
+            sessions.pop();
 
         settings.savedSessions = JSON.stringify(sessions);
     }
