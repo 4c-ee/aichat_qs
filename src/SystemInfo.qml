@@ -8,7 +8,6 @@ QtObject {
     // Probed system information, populated by fetch().
     property var systemInfoMap: ({})
     property bool systemInfoReady: false
-    property string systemInfoString: ""
 
     signal fetched()
 
@@ -41,7 +40,6 @@ QtObject {
 
             root.systemInfoMap = info;
             root.systemInfoReady = true;
-            root.systemInfoString = infoParts.join("\n");
 
             root.fetched();
             proc.destroy();

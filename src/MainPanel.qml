@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
 import Qt.labs.settings
 import QtCore
 import Quickshell
@@ -310,7 +309,7 @@ PanelWindow {
             settings.apiKey,
             config.modelName,
             root.messageHistory,
-            config.enableStreaming,
+            true,
             config.temperature
         );
     }
@@ -627,7 +626,7 @@ PanelWindow {
                                 settings.apiKey,
                                 config.modelName,
                                 root.messageHistory,
-                                config.enableStreaming,
+                                true,
                                 config.temperature
                             );
                         });

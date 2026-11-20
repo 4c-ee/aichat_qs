@@ -7,15 +7,10 @@ Item {
 
     id: root
 
-    property string pendingData: ""
-    property bool isStreaming: false
-    property int lastLineProcessed: 0
-    property string requestId: ""
     property var activeXhr: null
     property var activeModelsXhr: null
     property int modelsRequestId: 0
     property bool modelsRequestTimedOut: false
-    property int lastExitCode: 0
 
     Timer {
         id: modelsTimeoutTimer
@@ -236,8 +231,6 @@ Item {
             root.activeXhr.abort();
             root.activeXhr = null;
         }
-        isStreaming = stream;
-        lastLineProcessed = 0;
         var trimmedEndpoint = root.normalizeEndpoint(endpoint);
         var url = trimmedEndpoint + "/chat/completions";
         var trimmedKey = apiKey ? apiKey.trim() : "";
@@ -356,8 +349,6 @@ Item {
 
     function stop() {
         if (root.activeXhr) {
-            isStreaming = false;
-
             chatTimeoutTimer.stop();
 
             var xhr = root.activeXhr;

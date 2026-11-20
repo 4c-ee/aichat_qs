@@ -20,9 +20,6 @@ Popup {
     property string saveStatus: ""
 
     signal personaSelected(string id)
-    signal personaEdited()
-    signal personaDeleted()
-    signal settingsUpdated()
 
     x: 0
     y: 0
@@ -81,7 +78,6 @@ Popup {
         root.config.temperature = root.settings.temperature;
 
         root.saveStatus = "settings saved";
-        root.settingsUpdated();
     }
 
     background: Rectangle {
@@ -576,7 +572,6 @@ Popup {
 
                                             personasModel.clear();
                                             parsedPersonas.forEach(persona => personasModel.append(persona));
-                                            root.personaDeleted();
                                         }
                                     }
                                 }
@@ -904,7 +899,6 @@ Popup {
                                     parsedPersonas.forEach(persona => personasModel.append(persona));
 
                                     editPersonaPopup.close();
-                                    root.personaEdited();
                                 }
                             }
                         }

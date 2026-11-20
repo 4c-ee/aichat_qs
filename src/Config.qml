@@ -6,7 +6,7 @@ QtObject {
     // API configuration
     property string modelName: ""
     property real temperature: 0.7
-    property bool enableStreaming: true
+    // Streaming is always on; kept on by default for every send.
 
     // Typography
     property string fontFamily: "Google Sans Flex"
