@@ -5,7 +5,10 @@ function escapeHtml(text) {
     return String(text)
         .replace(/&/g, amp + "amp;")
         .replace(/</g, amp + "lt;")
-        .replace(/>/g, amp + "gt;");
+        .replace(/>/g, amp + "gt;")
+        // Escape double quotes so a model-generated attribute cannot
+        // break out of the surrounding HTML attribute in RichText.
+        .replace(/"/g, amp + "#34;");
 }
 
 function formatMessage(text) {
@@ -84,19 +87,6 @@ function stripLegacyToolCall(text) {
     return String(text).replace(legacyToolCall, "").replace(/\s+$/, "");
 }
 
-function stripReasoningFromHistory(history) {
-    var cleaned = [];
-    for (var i = 0; i < history.length; i++) {
-        var msg = history[i];
-        if (msg.role === "assistant") {
-            cleaned.push({ role: "assistant", content: msg.content });
-        } else {
-            cleaned.push(msg);
-        }
-    }
-    return cleaned;
-}
-
 function contentToString(content) {
     if (typeof content === "string") return content;
     if (Array.isArray(content)) {
@@ -109,4 +99,8 @@ function contentToString(content) {
         return result;
     }
     return String(content);
+}
+
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }

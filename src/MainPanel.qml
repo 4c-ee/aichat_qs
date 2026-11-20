@@ -1,13 +1,11 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
 import Qt.labs.settings
 import QtCore
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
-import "ApiClient.js" as ApiClientJs
 import "MessageFormatter.js" as MessageFormatter
 
 PanelWindow {
@@ -20,6 +18,7 @@ PanelWindow {
     readonly property alias panelConfig: config
     readonly property alias settingsStore: settings
     readonly property alias sessionsModelValue: sessionsModel
+    readonly property alias sessionManager: sessionManager
 
     signal settingsPanelRequested()
     signal chatListPanelRequested()
@@ -27,20 +26,6 @@ PanelWindow {
 
     ApiClient {
         id: apiClient
-        onModelsReceived: (models) => {
-            root.cachedModelsList = models;
-            root.refreshModelFilter();
-            root.cachedModelsEndpoint = settings.apiEndpoint.trim();
-            root.cachedModelsKey = settings.apiKey.trim();
-            root.modelsFetched = true;
-            root.modelPickerStatus = models.length === 0 ? "No models returned by this endpoint." : "";
-        }
-        onModelsFailed: (error) => {
-            root.modelsFetched = false;
-            root.cachedModelsList = [];
-            root.refreshModelFilter();
-            root.modelPickerStatus = error;
-        }
         onResponseReceived: (response, reasoning) => {
             root.isLoading = false;
             var wasAtEnd = chatView.atYEnd;
@@ -52,6 +37,7 @@ PanelWindow {
                 message: response,
                 thinking: reasoning || "",
                 historyIndex: root.messageHistory.length - 1,
+                modelName: config.modelName,
                 toolName: "",
                 toolInput: "",
                 toolOutput: "",
@@ -73,6 +59,7 @@ PanelWindow {
                     message: chunk,
                     thinking: "",
                     historyIndex: -1,
+                    modelName: config.modelName,
                     toolName: "",
                     toolInput: "",
                     toolOutput: "",
@@ -94,6 +81,7 @@ PanelWindow {
                     message: "",
                     thinking: chunk,
                     historyIndex: -1,
+                    modelName: config.modelName,
                     toolName: "",
                     toolInput: "",
                     toolOutput: "",
@@ -141,6 +129,33 @@ PanelWindow {
         backgroundApiClient: backgroundApiClient
     }
 
+    SystemInfo {
+        id: systemInfo
+
+        onFetched: {
+            // System info probe finished: create the initial session or
+            // refresh the system message with the probed date/time/etc.
+            if (currentSessionId === "") {
+                var session = sessionManager.createNewSession();
+                currentSessionId = session.id;
+                root.messageHistory = session.history;
+            } else if (messageHistory.length > 0 && messageHistory[0].role === "system") {
+                var resolvedSystem = root.currentSystemPrompt();
+                if (messageHistory[0].content !== resolvedSystem) {
+                    messageHistory[0].content = resolvedSystem;
+                    // In-place mutation of a property var does not fire
+                    // onMessageHistoryChanged; reassign to notify listeners.
+                    root.messageHistory = [...root.messageHistory];
+                    sessionManager.saveCurrentSession(messageHistory);
+                }
+            }
+        }
+    }
+
+    AttachmentProcessor {
+        id: attachmentProcessor
+    }
+
     anchors {
         left: true
         top: true
@@ -169,89 +184,30 @@ PanelWindow {
     property bool isLoading: false
     property var attachments: []
     property string currentSessionId: ""
-    property string cachedModelsEndpoint: ""
-    property string cachedModelsKey: ""
-    property var cachedModelsList: []
-    property bool modelsFetched: false
-    property string modelPickerStatus: ""
-    property string modelFilterText: ""
     property bool assistantResponseStarted: false
 
-    function openSettings() {
-        settingsPanelRequested();
-    }
+    property var currentPersona: null
 
-    function openModelPicker() {
-        if (modelPickerPopup.opened) {
-            modelPickerPopup.close();
-            return;
-        }
-
-        root.modelFilterText = "";
-        modelPickerPopup.open();
-        modelFilterField.forceActiveFocus();
-        var endpoint = settings.apiEndpoint.trim();
-        var key = settings.apiKey.trim();
-        if (root.cachedModelsEndpoint !== endpoint || root.cachedModelsKey !== key || !root.modelsFetched) {
-            filteredModelsModel.clear();
-            root.cachedModelsList = [];
-            root.refreshModelFilter();
-            root.modelsFetched = false;
-            root.modelPickerStatus = "Loading models...";
-            apiClient.getModels(endpoint, key);
-        } else {
-            console.log("Using cached models list");
-        }
-    }
-
-    function refreshModelFilter() {
-        filteredModelsModel.clear();
-        var filter = root.modelFilterText.trim().toLowerCase();
-        root.cachedModelsList.forEach(modelId => {
-            var modelName = String(modelId);
-            if (filter === "" || modelName.toLowerCase().indexOf(filter) !== -1) {
-                filteredModelsModel.append({
-                    modelId: modelName,
-                    displayName: modelName
-                });
-            }
-        });
-    }
-
-    onModelFilterTextChanged: root.refreshModelFilter()
-
-    property var currentPersona: {
+    function computeCurrentPersona() {
         var ps = JSON.parse(settings.personas);
-        return ps.find(p => p.id === settings.currentPersonaId) || ps[0];
+        currentPersona = ps.find(p => p.id === settings.currentPersonaId) || ps[0];
     }
 
-    property string systemInfoString: ""
-    property bool systemInfoReady: false
-    property var systemInfoMap: ({})
+    // Build the system message for the current persona, resolving system info
+    // placeholders and appending the persona's personality prompt.
+    function currentSystemPrompt() {
+        return systemInfo.resolveSystemPrompt(currentPersona.system)
+            + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
+    }
 
-    function resolveSystemPrompt(systemText) {
-        if (!systemText) return "";
-        var text = systemText;
-        var info = root.systemInfoMap || {};
-
-        var dateVal = info.DATE || "";
-        var userVal = info.USER || "";
-        var hostVal = info.HOSTNAME || "";
-        var osVal = info.OS || "";
-        var deVal = info.DE || "N/A";
-        var kernelVal = info.KERNEL || "";
-
-        text = text.replace(/\{date time\}/gi, dateVal)
-                   .replace(/\{datetime\}/gi, dateVal)
-                   .replace(/\{date\}/gi, dateVal)
-                   .replace(/\{user\}/gi, userVal)
-                   .replace(/\{hostname\}/gi, hostVal)
-                   .replace(/\{os\}/gi, osVal)
-                   .replace(/\{de\}/gi, deVal)
-                   .replace(/\{desktop\}/gi, deVal)
-                   .replace(/\{kernel\}/gi, kernelVal);
-
-        return MessageFormatter.stripLegacyToolInstructions(text);
+    // Guard against sending before the user has picked a model, which would
+    // transmit an empty model and risk a server 400.
+    function ensureModelSelected() {
+        if (config.modelName)
+            return true;
+        console.error("Cannot send: no model selected. Pick a model first.");
+        root.isLoading = false;
+        return false;
     }
 
     // Remove data produced by the disconnected legacy text-tool protocol from
@@ -292,66 +248,18 @@ PanelWindow {
         return cleaned;
     }
 
-    function fetchSystemInfo() {
-        var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
-        proc.command = ["sh", "-c", "echo 'DATE:' $(date); echo 'USER:' $USER; echo 'HOSTNAME:' $HOSTNAME; uname -r | sed 's/^/KERNEL: /'; cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d= -f2 | sed 's/\"//g' | sed 's/^/OS: /'; echo $XDG_CURRENT_DESKTOP | grep -v '^$' | sed 's/^/DE: /'"];
-
-        var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
-        proc.stdout = collector;
-
-        collector.streamFinished.connect(function() {
-            var lines = collector.text.split('\n');
-            var info = {};
-            lines.forEach(function(line) {
-                var parts = line.split(':', 2);
-                if (parts.length === 2) {
-                    var key = parts[0].trim();
-                    var value = parts[1].trim();
-                    if (key && value) info[key] = value;
-                }
-            });
-
-            var infoParts = [];
-            if (info.DATE) infoParts.push("Current Date/Time: " + info.DATE);
-            if (info.USER) infoParts.push("User: " + info.USER);
-            if (info.HOSTNAME) infoParts.push("Hostname: " + info.HOSTNAME);
-            if (info.OS) infoParts.push("OS: " + info.OS);
-            if (info.DE) infoParts.push("Desktop Environment: " + info.DE);
-            if (info.KERNEL) infoParts.push("Kernel: " + info.KERNEL);
-
-            root.systemInfoString = infoParts.join("\n");
-            root.systemInfoMap = info;
-            root.systemInfoReady = true;
-
-            if (currentSessionId === "") {
-                var session = sessionManager.createNewSession();
-                currentSessionId = session.id;
-                root.messageHistory = session.history;
-            } else if (messageHistory.length > 0 && messageHistory[0].role === "system") {
-                var resolvedSystem = resolveSystemPrompt(currentPersona.system) + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
-                if (messageHistory[0].content !== resolvedSystem) {
-                    messageHistory[0].content = resolvedSystem;
-                    sessionManager.saveCurrentSession(messageHistory);
-                }
-            }
-            proc.destroy();
-        });
-
-        proc.running = true;
-    }
-
     SessionManager {
         id: sessionManager
         settings: settings
         currentSessionId: root.currentSessionId
         config: config
-        resolveSystemPromptFn: root.resolveSystemPrompt
+        resolveSystemPromptFn: systemInfo.resolveSystemPrompt
         currentPersona: root.currentPersona
     }
 
     Settings {
         id: settings
-        location: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/history.conf"
+        location: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/aichat_qs/history.conf"
         category: "History"
         property string savedSessions: "[]"
         property string lastModel: ""
@@ -359,22 +267,40 @@ PanelWindow {
         property string personas: '[{"id":"default","name":"Assistant","system":"You are a helpful assistant. System Info:\\n- OS: {os}\\n- Kernel: {kernel}\\n- DE: {de}\\n- User: {user}\\n- Host: {hostname}\\n- Time: {date time}","personality":""}]'
         property string currentPersonaId: "default"
         property string apiEndpoint: "http://localhost:11434/v1"
-        property string apiKey: "wawa"
+        property string apiKey: ""
         property real temperature: 0.7
         property string searxngUrl: "http://localhost:8080"
         property bool summarizeSearch: true
     }
 
+    // Keep the currentPersona cache consistent even if currentPersonaId is
+    // mutated from somewhere other than the usual call sites, so the cached
+    // persona can never go stale silently.
+    Connections {
+        target: settings
+        function onCurrentPersonaIdChanged() {
+            root.computeCurrentPersona();
+        }
+    }
+
     onCurrentPersonaChanged: {
+        // Guard against switching personas before system info is ready,
+        // which would bake empty {os}, {kernel} etc. into the stored system message.
+        if (!systemInfo.systemInfoReady)
+            return;
+
         if (messageHistory.length > 0 && messageHistory[0].role === "system") {
-            var newSystem = resolveSystemPrompt(currentPersona.system) + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
+            var newSystem = root.currentSystemPrompt();
             messageHistory[0].content = newSystem;
+            // In-place mutation of a property var does not fire
+            // onMessageHistoryChanged; reassign to notify listeners.
+            root.messageHistory = [...root.messageHistory];
             sessionManager.saveCurrentSession(messageHistory);
         }
     }
 
     function generateId() {
-        return Date.now().toString(36) + Math.random().toString(36).substring(2);
+        return MessageFormatter.generateId();
     }
 
     function saveCurrentSession() {
@@ -409,6 +335,9 @@ PanelWindow {
         if (!userMessage || userMessage.role !== "user")
             return;
 
+        if (!root.ensureModelSelected())
+            return;
+
         var retryHistory = root.messageHistory.slice(0, historyIndex + 1);
         root.messageHistory = retryHistory;
         root.rebuildChatModel(retryHistory);
@@ -419,7 +348,7 @@ PanelWindow {
             settings.apiKey,
             config.modelName,
             root.messageHistory,
-            config.enableStreaming,
+            true,
             config.temperature
         );
     }
@@ -456,9 +385,11 @@ PanelWindow {
             }
             if (session.temperature !== undefined) {
                 config.temperature = session.temperature;
+                settings.temperature = session.temperature;
             }
             if (session.personaId) {
                 settings.currentPersonaId = session.personaId;
+                computeCurrentPersona();
             }
 
             root.rebuildChatModel(sanitizedHistory);
@@ -509,11 +440,8 @@ PanelWindow {
     }
 
     Component.onCompleted: {
-        config.apiEndpoint = settings.apiEndpoint;
-        config.apiKey = settings.apiKey;
         config.temperature = settings.temperature;
-        config.searxngUrl = settings.searxngUrl;
-        config.summarizeSearch = settings.summarizeSearch;
+        computeCurrentPersona();
 
         if (settings.lastModel !== "") {
             config.modelName = settings.lastModel;
@@ -559,7 +487,7 @@ PanelWindow {
             loadSession(settings.lastSessionId);
         }
 
-        fetchSystemInfo();
+        systemInfo.fetch();
     }
 
     onMessageHistoryChanged: {
@@ -571,15 +499,15 @@ PanelWindow {
         if (opened) {
             root.visible = true;
             inputArea.forceFocus();
+            // Refresh date/time in system prompt (fetchSystemInfo only runs
+            // once at startup; a panel left open overnight would tell the
+            // model the wrong date).
+            systemInfo.fetch();
         }
     }
 
     function formatMessage(text) {
         return MessageFormatter.formatMessage(text);
-    }
-
-    function stripReasoningFromHistory(history) {
-        return MessageFormatter.stripReasoningFromHistory(history);
     }
 
     function savePartialAssistantMessage() {
@@ -598,233 +526,22 @@ PanelWindow {
         root.assistantResponseStarted = false;
     }
 
-    function contentToString(content) {
-        return MessageFormatter.contentToString(content);
-    }
-
-    function processAttachments(files, callback) {
-        console.log("Processing attachments:", files.length);
-        if (files.length === 0) {
-            callback([]);
-            return;
-        }
-
-        var results = new Array(files.length);
-        var completed = 0;
-
-        function checkCompletion() {
-            completed++;
-            console.log("Attachment progress:", completed, "/", files.length);
-            if (completed === files.length) {
-                console.log("All attachments processed. Count:", results.filter(r => r !== undefined).length);
-                callback(results.filter(r => r !== undefined));
-            }
-        }
-
-        files.forEach((file, index) => {
-            console.log("Processing file:", file);
-            if (file.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-                var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
-                proc.command = ["base64", "-w", "0", file];
-
-                var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
-                proc.stdout = collector;
-
-                var errCollector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
-                proc.stderr = errCollector;
-                errCollector.streamFinished.connect(function() {
-                    if (errCollector.text !== "") console.error("Image process error for " + file + ":", errCollector.text);
-                });
-
-                collector.streamFinished.connect(function() {
-                    var encodedData = collector.text.trim();
-                    if (encodedData !== "") {
-                        var mimeType = "image/jpeg";
-                        if (file.match(/\.png$/i)) mimeType = "image/png";
-                        else if (file.match(/\.gif$/i)) mimeType = "image/gif";
-                        else if (file.match(/\.webp$/i)) mimeType = "image/webp";
-
-                        console.log("Encoded image:", file, "size:", encodedData.length);
-                        results[index] = {
-                            type: "image_url",
-                            image_url: {
-                                url: "data:" + mimeType + ";base64," + encodedData
-                            }
-                        };
-                    } else {
-                        console.error("Image base64 encoding returned empty for:", file);
-                    }
-
-                    checkCompletion();
-                    proc.destroy();
-                });
-
-                proc.running = true;
-            } else if (file.match(/\.(wav|mp3|ogg|m4a)$/i)) {
-                var procAudio = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
-                procAudio.command = ["base64", "-w", "0", file];
-
-                var collectorAudio = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', procAudio);
-                procAudio.stdout = collectorAudio;
-
-                var errCollectorAudio = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', procAudio);
-                procAudio.stderr = errCollectorAudio;
-                errCollectorAudio.streamFinished.connect(function() {
-                    if (errCollectorAudio.text !== "") {
-                        console.error("Audio process error:", errCollectorAudio.text);
-                    }
-                });
-
-                collectorAudio.streamFinished.connect(function() {
-                    if (collectorAudio.text !== "") {
-                        var format = "wav";
-                        if (file.match(/\.mp3$/i)) format = "mp3";
-                        else if (file.match(/\.ogg$/i)) format = "ogg";
-                        else if (file.match(/\.m4a$/i)) format = "m4a";
-
-                        results[index] = {
-                            type: "input_audio",
-                            input_audio: {
-                                data: collectorAudio.text,
-                                format: format
-                            }
-                        };
-                    }
-
-                    checkCompletion();
-                    procAudio.destroy();
-                });
-
-                procAudio.running = true;
-            } else {
-                var procDoc = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
-                procDoc.command = ["cat", file];
-
-                var collectorDoc = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', procDoc);
-                procDoc.stdout = collectorDoc;
-
-                var errCollectorDoc = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', procDoc);
-                procDoc.stderr = errCollectorDoc;
-                errCollectorDoc.streamFinished.connect(function() {
-                    if (errCollectorDoc.text !== "") console.error("Doc process error:", errCollectorDoc.text);
-                });
-
-                collectorDoc.streamFinished.connect(function() {
-                    if (collectorDoc.text !== "") {
-                        var fileName = file.split('/').pop();
-                        results[index] = {
-                            type: "text",
-                            text: "\n--- Attached File: " + fileName + " ---\n" + collectorDoc.text + "\n--- End Attachment ---"
-                        };
-                    }
-
-                    checkCompletion();
-                    procDoc.destroy();
-                });
-
-                procDoc.running = true;
-            }
-        });
-    }
-
     property var messageHistory: [
         { role: "system", content: "You are a helpful assistant." }
     ]
 
     ListModel { id: chatModel }
     ListModel { id: sessionsModel }
-    ListModel { id: filteredModelsModel }
-
-    Popup {
-        id: modelPickerPopup
+    ModelPicker {
+        id: modelPicker
         parent: inputArea.modelPickerButton
-        x: 0
-        y: -height - 6
-        width: Math.min(300, root.implicitWidth - 32)
-        height: Math.min(440, Math.max(110, 48 + filteredModelsModel.count * 38
-            + (root.modelPickerStatus !== "" ? 48 : 12)))
-        padding: 6
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+        config: config
+        apiClient: apiClient
+        settings: settings
 
-        background: Rectangle {
-            radius: config.controlRadius
-            color: config.surfaceColor
-            border.color: config.outerBorderColor
-            border.width: 1
-        }
-
-        contentItem: ColumnLayout {
-            spacing: 4
-
-            StyledTextField {
-                id: modelFilterField
-                Layout.fillWidth: true
-                config: config
-                placeholderText: "Filter models..."
-                text: root.modelFilterText
-                onTextEdited: root.modelFilterText = text
-            }
-
-            Text {
-                Layout.fillWidth: true
-                visible: root.modelPickerStatus !== ""
-                text: root.modelPickerStatus
-                color: config.dangerColor
-                font.family: config.fontFamily
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-            }
-
-            Text {
-                Layout.fillWidth: true
-                visible: root.modelFilterText.trim() !== ""
-                    && root.cachedModelsList.length > 0
-                    && filteredModelsModel.count === 0
-                text: "No models match this filter."
-                color: config.textMuted
-                font.family: config.fontFamily
-                font.pixelSize: 12
-            }
-
-            ListView {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                model: filteredModelsModel
-                clip: true
-                spacing: 3
-
-                delegate: ItemDelegate {
-                    id: modelDelegate
-                    width: ListView.view.width
-                    height: 35
-                    padding: 10
-
-                    contentItem: Text {
-                        text: model.displayName
-                        color: modelDelegate.highlighted
-                            ? config.accent1Hover
-                            : (model.modelId === config.modelName ? config.accent1 : config.textMain)
-                        font.family: config.fontFamily
-                        font.pixelSize: 13
-                        font.weight: modelDelegate.highlighted || model.modelId === config.modelName
-                            ? Font.DemiBold
-                            : Font.Normal
-                        verticalAlignment: Text.AlignVCenter
-                        elide: Text.ElideRight
-                    }
-
-                    background: Rectangle {
-                        radius: config.controlRadius
-                        color: modelDelegate.hovered ? config.accent1Hover : "transparent"
-                    }
-
-                    onClicked: {
-                        config.modelName = model.modelId;
-                        settings.lastModel = model.modelId;
-                        modelPickerPopup.close();
-                    }
-                }
-            }
+        onModelSelected: (modelId) => {
+            config.modelName = modelId;
+            settings.lastModel = modelId;
         }
     }
 
@@ -908,7 +625,7 @@ PanelWindow {
                     id: inputArea
                     config: config
                     isLoading: root.isLoading
-                    modelPickerOpen: modelPickerPopup.opened
+                    modelPickerOpen: modelPicker.opened
                     attachments: root.attachments
 
                     onAttachmentAdded: (filePath) => {
@@ -921,7 +638,9 @@ PanelWindow {
                     }
 
                     onSendRequested: (text, attachments) => {
-                        root.processAttachments(attachments, function(processedAttachments) {
+                        if (!root.ensureModelSelected())
+                            return;
+                        attachmentProcessor.process(attachments, function(processedAttachments) {
                             var userMessage = { role: "user", content: text };
                             if (processedAttachments.length > 0) {
                                 userMessage.content = [
@@ -949,7 +668,7 @@ PanelWindow {
                                 settings.apiKey,
                                 config.modelName,
                                 root.messageHistory,
-                                config.enableStreaming,
+                                true,
                                 config.temperature
                             );
                         });
@@ -958,7 +677,7 @@ PanelWindow {
                         apiClient.stop();
                     }
                     onModelPickerRequested: () => {
-                        root.openModelPicker();
+                        modelPicker.show();
                     }
                 }
             }

@@ -4,7 +4,6 @@ import QtQuick.Controls
 Rectangle {
     id: root
 
-    property var targetItem: null
     property color normalColor: "#b6cacc"
     property color hoverColor: "#e9ffe3"
 

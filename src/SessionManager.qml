@@ -1,4 +1,5 @@
 import QtQuick
+import "MessageFormatter.js" as MessageFormatter
 
 QtObject {
     id: root
@@ -8,16 +9,27 @@ QtObject {
     property var config
     property var resolveSystemPromptFn
     property var currentPersona
+    property string _lastSavedHistory: ""
 
-    signal sessionCreated(string id)
-    signal sessionLoaded(var history)
+    // Cap the retained session list so the INI-backed savedSessions string
+    // cannot grow without bound.
+    property int maxSavedSessions: 50
 
     function generateId() {
-        return Date.now().toString(36) + Math.random().toString(36).substring(2);
+        return MessageFormatter.generateId();
     }
 
     function saveCurrentSession(messageHistory) {
         if (currentSessionId === "") return;
+
+        // Skip the full sessions-list rewrite when the current session's
+        // history is unchanged (onMessageHistoryChanged can fire on no-op
+        // ticks, and serializing every session on every message is O(total
+        // history)).
+        var historyStr = JSON.stringify(messageHistory);
+        if (historyStr === _lastSavedHistory)
+            return;
+        _lastSavedHistory = historyStr;
 
         var sessions = JSON.parse(settings.savedSessions);
         var found = false;
@@ -62,6 +74,11 @@ QtObject {
             });
         }
 
+        // Drop the oldest sessions once the cap is exceeded (sessions are
+        // newest-first, so pop() removes the oldest).
+        while (sessions.length > maxSavedSessions)
+            sessions.pop();
+
         settings.savedSessions = JSON.stringify(sessions);
     }
 
@@ -90,6 +107,11 @@ QtObject {
         if (index !== -1) {
             sessions.splice(index, 1);
             settings.savedSessions = JSON.stringify(sessions);
+
+            // Clear dangling lastSessionId if the deleted session was the last one.
+            if (settings.lastSessionId === id) {
+                settings.lastSessionId = sessions.length > 0 ? sessions[0].id : "";
+            }
             return sessions;
         }
         return sessions;

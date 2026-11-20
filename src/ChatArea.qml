@@ -65,7 +65,7 @@ ListView {
                         Layout.alignment: Qt.AlignVCenter
                         iconSource: "svgs/retry.svg"
                         hoverIconSource: "svgs/retry-hover.svg"
-                        tooltipText: "Retry this response"
+                        tooltipText: "Resend this message"
                         config: root.config
                         enabled: !root.isLoading
                         onClicked: root.retryRequested(model.historyIndex)
@@ -300,7 +300,7 @@ ListView {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         Layout.alignment: Qt.AlignVCenter
-                        text: root.config.modelName
+                        text: model.modelName || root.config.modelName
                         color: root.config.textMuted
                         font.family: root.config.fontFamily
                         font.pixelSize: 14

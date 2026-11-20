@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 
 Popup {
@@ -8,6 +9,7 @@ Popup {
     property var settings
     property var config
     property var generateIdFn
+    property var computeCurrentPersonaFn
 
     property string draftApiEndpoint: ""
     property string draftApiKey: ""
@@ -18,9 +20,6 @@ Popup {
     property string saveStatus: ""
 
     signal personaSelected(string id)
-    signal personaEdited()
-    signal personaDeleted()
-    signal settingsUpdated()
 
     x: 0
     y: 0
@@ -29,7 +28,20 @@ Popup {
     modal: true
     focus: true
     padding: 0
-    closePolicy: Popup.CloseOnEscape
+    closePolicy: Popup.NoAutoClose
+
+    Shortcut {
+        sequence: "Escape"
+        onActivated: root.requestClose()
+    }
+
+    function requestClose() {
+        if (root.saveStatus === "unsaved changes") {
+            discardConfirm.open();
+        } else {
+            root.close();
+        }
+    }
 
     onOpened: {
         root.loadDraft();
@@ -63,14 +75,9 @@ Popup {
         root.settings.temperature = root.draftTemperature;
         root.settings.summarizeSearch = root.draftSummarizeSearch;
 
-        root.config.apiEndpoint = root.settings.apiEndpoint;
-        root.config.apiKey = root.settings.apiKey;
-        root.config.searxngUrl = root.settings.searxngUrl;
         root.config.temperature = root.settings.temperature;
-        root.config.summarizeSearch = root.settings.summarizeSearch;
 
         root.saveStatus = "settings saved";
-        root.settingsUpdated();
     }
 
     background: Rectangle {
@@ -131,7 +138,7 @@ Popup {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.close()
+                    onClicked: root.requestClose()
                 }
             }
         }
@@ -561,10 +568,10 @@ Popup {
                                             root.settings.personas = JSON.stringify(parsedPersonas);
                                             if (root.settings.currentPersonaId === model.id)
                                                 root.settings.currentPersonaId = "default";
+                                            root.computeCurrentPersonaFn();
 
                                             personasModel.clear();
                                             parsedPersonas.forEach(persona => personasModel.append(persona));
-                                            root.personaDeleted();
                                         }
                                     }
                                 }
@@ -609,6 +616,7 @@ Popup {
 
     DarkPopup {
         id: addPersonaPopup
+        config: root.config
         anchors.centerIn: parent
         width: Math.min(430, parent.width - 32)
         height: Math.min(560, parent.height - 32)
@@ -737,6 +745,7 @@ Popup {
                                     personality: newPersonaPersonality.text
                                 });
                                 root.settings.personas = JSON.stringify(parsedPersonas);
+                                root.computeCurrentPersonaFn();
 
                                 personasModel.clear();
                                 parsedPersonas.forEach(persona => personasModel.append(persona));
@@ -755,6 +764,7 @@ Popup {
 
     DarkPopup {
         id: editPersonaPopup
+        config: root.config
         anchors.centerIn: parent
         width: Math.min(430, parent.width - 32)
         height: Math.min(560, parent.height - 32)
@@ -885,19 +895,66 @@ Popup {
                                     parsedPersonas[index].personality = editPersonaPersonality.text;
                                     root.settings.personas = JSON.stringify(parsedPersonas);
 
-                                    if (root.settings.currentPersonaId === editPersonaPopup.editingId) {
-                                        var selectedId = root.settings.currentPersonaId;
-                                        root.settings.currentPersonaId = "";
-                                        root.settings.currentPersonaId = selectedId;
-                                    }
+                                    root.computeCurrentPersonaFn();
 
                                     personasModel.clear();
                                     parsedPersonas.forEach(persona => personasModel.append(persona));
 
                                     editPersonaPopup.close();
-                                    root.personaEdited();
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        DarkPopup {
+            id: discardConfirm
+            config: root.config
+            modal: true
+            focus: true
+            width: Math.min(400, parent.width - 32)
+            height: Math.min(200, parent.height - 32)
+
+            ColumnLayout {
+                anchors.centerIn: parent
+                spacing: 16
+
+                Text {
+                    text: "Discard unsaved changes?"
+                    color: root.config.textMain
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    text: "Your API key and other settings will be lost."
+                    color: root.config.textMuted
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
+
+                RowLayout {
+                    spacing: 9
+
+                    Item { Layout.fillWidth: true }
+
+                    RetroButton {
+                        text: "Cancel"
+                        config: root.config
+                        onClicked: discardConfirm.close()
+                    }
+
+                    RetroButton {
+                        text: "Discard"
+                        config: root.config
+                        onClicked: {
+                            discardConfirm.close();
+                            root.close();
                         }
                     }
                 }

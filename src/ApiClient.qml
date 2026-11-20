@@ -7,15 +7,10 @@ Item {
 
     id: root
 
-    property string pendingData: ""
-    property bool isStreaming: false
-    property int lastLineProcessed: 0
-    property string requestId: ""
     property var activeXhr: null
     property var activeModelsXhr: null
     property int modelsRequestId: 0
     property bool modelsRequestTimedOut: false
-    property int lastExitCode: 0
 
     Timer {
         id: modelsTimeoutTimer
@@ -30,6 +25,22 @@ Item {
             root.activeModelsXhr = null;
             timedOutXhr.abort();
             root.modelsFailed("Models request timed out. Check the endpoint URL and protocol.");
+        }
+    }
+
+    Timer {
+        id: chatTimeoutTimer
+        interval: 60000
+        repeat: false
+        onTriggered: {
+            if (!root.activeXhr)
+                return;
+
+            var timedOutXhr = root.activeXhr;
+            timedOutXhr.userStopped = true;
+            root.activeXhr = null;
+            timedOutXhr.abort();
+            root.errorOccurred("Request timed out. The endpoint may be unreachable or overloaded.");
         }
     }
 
@@ -216,11 +227,10 @@ Item {
 
     function sendMessage(endpoint, apiKey, model, messages, stream = false, temperature = null) {
         if (root.activeXhr) {
+            root.activeXhr.userStopped = true;
             root.activeXhr.abort();
             root.activeXhr = null;
         }
-        isStreaming = stream;
-        lastLineProcessed = 0;
         var trimmedEndpoint = root.normalizeEndpoint(endpoint);
         var url = trimmedEndpoint + "/chat/completions";
         var trimmedKey = apiKey ? apiKey.trim() : "";
@@ -245,12 +255,14 @@ Item {
         var xhr = new XMLHttpRequest();
         xhr.userStopped = false;
         root.activeXhr = xhr;
+        chatTimeoutTimer.restart();
         xhr.open("POST", url, true);
         xhr.setRequestHeader("Content-Type", "application/json");
         if (trimmedKey !== "")
             xhr.setRequestHeader("Authorization", "Bearer " + trimmedKey);
 
         var lastHandledIndex = 0;
+        var streamDone = false;
         xhr.onreadystatechange = function() {
             if (xhr.readyState === 3 || xhr.readyState === 4) {
                 if (xhr.status === 200) {
@@ -263,8 +275,11 @@ Item {
                             var line = lines[i].trim();
                             if (line.startsWith('data:')) {
                                 var data = line.substring(5).trim();
-                                if (data === '' || data === '[DONE]')
+                                if (data === '') continue;
+                                if (data === '[DONE]') {
+                                    streamDone = true;
                                     continue;
+                                }
 
                                 try {
                                     var chunk = JSON.parse(data);
@@ -286,10 +301,15 @@ Item {
                 }
             }
             if (xhr.readyState === 4) {
+                chatTimeoutTimer.stop();
                 root.activeXhr = null;
                 if (xhr.status === 200) {
                     if (stream) {
-                        root.streamingFinished();
+                        if (!streamDone) {
+                            root.errorOccurred("Network Error: Connection died mid-stream.");
+                        } else {
+                            root.streamingFinished();
+                        }
                     } else {
                         try {
                             var response = JSON.parse(xhr.responseText);
@@ -320,6 +340,7 @@ Item {
             if (xhr.userStopped)
                 return;
 
+            chatTimeoutTimer.stop();
             root.activeXhr = null;
             root.errorOccurred("Network Error: Connection failed.");
         };
@@ -328,7 +349,7 @@ Item {
 
     function stop() {
         if (root.activeXhr) {
-            isStreaming = false;
+            chatTimeoutTimer.stop();
 
             var xhr = root.activeXhr;
             root.activeXhr = null;

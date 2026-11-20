@@ -11,7 +11,7 @@ ShellRoot {
 
     function togglePanel() {
         if (root.panelTransitionActive)
-            return;
+            return false;
 
         root.panelTransitionActive = true;
 
@@ -23,6 +23,8 @@ ShellRoot {
             root.closingPanel = false;
             mainPanel.opened = true;
         }
+
+        return true;
     }
 
     function openPanel() {
@@ -68,6 +70,8 @@ ShellRoot {
         config: mainPanel.panelConfig
         settings: mainPanel.settingsStore
         sessionsModel: mainPanel.sessionsModelValue
+        sessionManager: mainPanel.sessionManager
+        computeCurrentPersonaFn: mainPanel.computeCurrentPersona
         generateIdFn: mainPanel.generateId
         currentSessionId: mainPanel.currentSessionId
         panelOpened: mainPanel.opened
