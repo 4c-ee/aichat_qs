@@ -137,9 +137,12 @@ PanelWindow {
                 currentSessionId = session.id;
                 root.messageHistory = session.history;
             } else if (messageHistory.length > 0 && messageHistory[0].role === "system") {
-                var resolvedSystem = systemInfo.resolveSystemPrompt(currentPersona.system) + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
+                var resolvedSystem = root.currentSystemPrompt();
                 if (messageHistory[0].content !== resolvedSystem) {
                     messageHistory[0].content = resolvedSystem;
+                    // In-place mutation of a property var does not fire
+                    // onMessageHistoryChanged; reassign to notify listeners.
+                    root.messageHistory = [...root.messageHistory];
                     sessionManager.saveCurrentSession(messageHistory);
                 }
             }
@@ -185,6 +188,13 @@ PanelWindow {
     function computeCurrentPersona() {
         var ps = JSON.parse(settings.personas);
         currentPersona = ps.find(p => p.id === settings.currentPersonaId) || ps[0];
+    }
+
+    // Build the system message for the current persona, resolving system info
+    // placeholders and appending the persona's personality prompt.
+    function currentSystemPrompt() {
+        return systemInfo.resolveSystemPrompt(currentPersona.system)
+            + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
     }
 
     // Remove data produced by the disconnected legacy text-tool protocol from
@@ -257,8 +267,11 @@ PanelWindow {
             return;
 
         if (messageHistory.length > 0 && messageHistory[0].role === "system") {
-            var newSystem = systemInfo.resolveSystemPrompt(currentPersona.system) + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
+            var newSystem = root.currentSystemPrompt();
             messageHistory[0].content = newSystem;
+            // In-place mutation of a property var does not fire
+            // onMessageHistoryChanged; reassign to notify listeners.
+            root.messageHistory = [...root.messageHistory];
             sessionManager.saveCurrentSession(messageHistory);
         }
     }
