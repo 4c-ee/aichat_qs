@@ -269,6 +269,7 @@ Item {
             xhr.setRequestHeader("Authorization", "Bearer " + trimmedKey);
 
         var lastHandledIndex = 0;
+        var streamDone = false;
         xhr.onreadystatechange = function() {
             if (xhr.readyState === 3 || xhr.readyState === 4) {
                 if (xhr.status === 200) {
@@ -281,8 +282,11 @@ Item {
                             var line = lines[i].trim();
                             if (line.startsWith('data:')) {
                                 var data = line.substring(5).trim();
-                                if (data === '' || data === '[DONE]')
+                                if (data === '') continue;
+                                if (data === '[DONE]') {
+                                    streamDone = true;
                                     continue;
+                                }
 
                                 try {
                                     var chunk = JSON.parse(data);
@@ -308,7 +312,11 @@ Item {
                 root.activeXhr = null;
                 if (xhr.status === 200) {
                     if (stream) {
-                        root.streamingFinished();
+                        if (!streamDone) {
+                            root.errorOccurred("Network Error: Connection died mid-stream.");
+                        } else {
+                            root.streamingFinished();
+                        }
                     } else {
                         try {
                             var response = JSON.parse(xhr.responseText);
