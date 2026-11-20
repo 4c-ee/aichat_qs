@@ -10,7 +10,7 @@ A specialized quick-access AI chat panel for Arch Linux and Hyprland, built with
 - **Message Branching**: Retry a user turn or fork a conversation from an assistant response.
 - **Model Filtering**: Filter the endpoint's model list before switching models.
 - **Markdown Support**: Basic rendering of bold, italic, and code blocks.
-- **SearXNG integration**: Ask your AI to search the web and recieve summarized answers.
+- **SearXNG integration**: Web search via SearXNG is configured in settings but the tool system is currently disconnected (legacy code retained for future OpenAI-compatible tools integration).
 - **Wayland Optimized**: Uses Layer Shell for proper placement and focus.
 
 ## Installation & Usage
@@ -37,10 +37,16 @@ A specialized quick-access AI chat panel for Arch Linux and Hyprland, built with
 - `shell.qml`: Main entry point and IPC handling.
 - `src/MainPanel.qml`: Core UI and chat logic.
 - `src/Config.qml`: User configuration and themes.
-- `src/ApiClient.js`: API interaction logic.
-- `src/`: Contains other QML components and scripts.
+- `src/ApiClient.qml`: API interaction logic (XMLHttpRequest-based).
+- `src/SystemInfo.qml`: System info probing (date, user, OS, etc.).
+- `src/AttachmentProcessor.qml`: Attachment processing (images, audio, docs).
+- `src/ModelPicker.qml`: Model picker popup with filtering.
+- `src/SessionManager.qml`: Session CRUD operations.
+- `src/MessageFormatter.js`: Markdown formatting and text utilities.
+- `src/`: Other QML components (chat area, input, sidebar, settings, etc.).
 
 ## Advanced
+- **API keys**: Keys are stored in plaintext in the settings file (`<AppData>/aichat_qs/history.conf`). This is acceptable for a local tool, but be aware when entering real keys.
 - **Drag and Drop**: Drag files onto the panel to attach them.
 - **Clear Chat**: Use the "Clear" button to reset the current session.
 - **Retry**: Use the retry action on a user message to remove later turns and regenerate that response.

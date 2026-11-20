@@ -237,7 +237,7 @@ PanelWindow {
 
     Settings {
         id: settings
-        location: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/history.conf"
+        location: StandardPaths.writableLocation(StandardPaths.AppDataLocation) + "/aichat_qs/history.conf"
         category: "History"
         property string savedSessions: "[]"
         property string lastModel: ""
