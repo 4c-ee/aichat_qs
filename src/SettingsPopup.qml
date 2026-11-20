@@ -9,6 +9,7 @@ Popup {
     property var settings
     property var config
     property var generateIdFn
+    property var computeCurrentPersonaFn
 
     property string draftApiEndpoint: ""
     property string draftApiKey: ""
@@ -571,6 +572,7 @@ Popup {
                                             root.settings.personas = JSON.stringify(parsedPersonas);
                                             if (root.settings.currentPersonaId === model.id)
                                                 root.settings.currentPersonaId = "default";
+                                            root.computeCurrentPersonaFn();
 
                                             personasModel.clear();
                                             parsedPersonas.forEach(persona => personasModel.append(persona));
@@ -747,6 +749,7 @@ Popup {
                                     personality: newPersonaPersonality.text
                                 });
                                 root.settings.personas = JSON.stringify(parsedPersonas);
+                                root.computeCurrentPersonaFn();
 
                                 personasModel.clear();
                                 parsedPersonas.forEach(persona => personasModel.append(persona));
@@ -900,6 +903,7 @@ Popup {
                                         root.settings.currentPersonaId = "";
                                         root.settings.currentPersonaId = selectedId;
                                     }
+                                    root.computeCurrentPersonaFn();
 
                                     personasModel.clear();
                                     parsedPersonas.forEach(persona => personasModel.append(persona));

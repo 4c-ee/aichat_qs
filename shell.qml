@@ -69,6 +69,7 @@ ShellRoot {
         settings: mainPanel.settingsStore
         sessionsModel: mainPanel.sessionsModelValue
         sessionManager: mainPanel.sessionManager
+        computeCurrentPersonaFn: mainPanel.computeCurrentPersona
         generateIdFn: mainPanel.generateId
         currentSessionId: mainPanel.currentSessionId
         panelOpened: mainPanel.opened

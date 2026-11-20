@@ -369,9 +369,6 @@ PanelWindow {
         }
     }
 
-    onSettingsCurrentPersonaIdChanged: computeCurrentPersona()
-    onSettingsPersonasChanged: computeCurrentPersona()
-
     function generateId() {
         return MessageFormatter.generateId();
     }
@@ -459,6 +456,7 @@ PanelWindow {
             }
             if (session.personaId) {
                 settings.currentPersonaId = session.personaId;
+                computeCurrentPersona();
             }
 
             root.rebuildChatModel(sanitizedHistory);

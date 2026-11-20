@@ -9,6 +9,7 @@ PanelWindow {
     property var settings
     property var sessionsModel
     property var sessionManager
+    property var computeCurrentPersonaFn
     property var generateIdFn
     property string currentSessionId
     property bool settingsActive: false
@@ -116,10 +117,12 @@ PanelWindow {
             height: settingsLayer.height
             settings: root.settings
             config: root.config
+            computeCurrentPersonaFn: root.computeCurrentPersonaFn
             generateIdFn: root.generateIdFn
 
             onPersonaSelected: (id) => {
                 root.settings.currentPersonaId = id;
+                root.computeCurrentPersonaFn();
             }
 
             onClosed: {
