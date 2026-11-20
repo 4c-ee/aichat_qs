@@ -7,7 +7,7 @@ Button {
     property url iconSource
     property url hoverIconSource: ""
     property string tooltipText: ""
-    property var config: null
+    property var config
 
     implicitWidth: 30
     implicitHeight: 30
@@ -24,13 +24,9 @@ Button {
     }
 
     background: Rectangle {
-        radius: root.config ? root.config.controlRadius : 10
-        color: root.hovered && root.enabled
-            ? (root.config ? root.config.nestedSurfaceColor : "#33000000")
-            : "transparent"
-        border.color: root.hovered && root.enabled
-            ? (root.config ? root.config.accent1 : "#c2ffb3")
-            : "transparent"
+        radius: root.config.controlRadius
+        color: root.hovered && root.enabled ? root.config.nestedSurfaceColor : "transparent"
+        border.color: root.hovered && root.enabled ? root.config.accent1 : "transparent"
         border.width: 1
     }
 

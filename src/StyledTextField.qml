@@ -4,13 +4,13 @@ import QtQuick.Controls
 TextField {
     id: root
 
-    property var config: null
+    property var config
 
-    color: root.config ? root.config.textMain : "#e0fafc"
-    placeholderTextColor: root.config ? root.config.textMuted : "#b6cacc"
-    selectionColor: root.config ? root.config.accent2 : "#c0f8fc"
-    selectedTextColor: root.config ? root.config.textMain : "#e0fafc"
-    font.family: root.config ? root.config.fontFamily : "Google Sans Flex"
+    color: root.config.textMain
+    placeholderTextColor: root.config.textMuted
+    selectionColor: root.config.accent2
+    selectedTextColor: root.config.textMain
+    font.family: root.config.fontFamily
     font.pixelSize: 14
     leftPadding: 12
     rightPadding: 12
@@ -18,11 +18,9 @@ TextField {
     bottomPadding: 9
 
     background: Rectangle {
-        radius: root.config ? root.config.controlRadius : 10
-        color: root.config ? root.config.nestedSurfaceColor : "#33000000"
-        border.color: root.activeFocus
-            ? (root.config ? root.config.accent1 : "#c2ffb3")
-            : (root.config ? root.config.outerBorderColor : "#66000000")
+        radius: root.config.controlRadius
+        color: root.config.nestedSurfaceColor
+        border.color: root.activeFocus ? root.config.accent1 : root.config.outerBorderColor
         border.width: 1
     }
 }
