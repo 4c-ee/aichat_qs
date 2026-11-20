@@ -132,7 +132,7 @@ Popup {
             root.modelPickerStatus = "Loading models...";
             root.apiClient.getModels(endpoint, key);
         }
-        Popup.open.call(root);
+        root.open();
         modelFilterField.forceActiveFocus();
     }
 
