@@ -11,7 +11,7 @@ ShellRoot {
 
     function togglePanel() {
         if (root.panelTransitionActive)
-            return;
+            return false;
 
         root.panelTransitionActive = true;
 
@@ -23,6 +23,8 @@ ShellRoot {
             root.closingPanel = false;
             mainPanel.opened = true;
         }
+
+        return true;
     }
 
     function openPanel() {

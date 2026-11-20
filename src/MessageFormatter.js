@@ -5,7 +5,10 @@ function escapeHtml(text) {
     return String(text)
         .replace(/&/g, amp + "amp;")
         .replace(/</g, amp + "lt;")
-        .replace(/>/g, amp + "gt;");
+        .replace(/>/g, amp + "gt;")
+        // Escape double quotes so a model-generated attribute cannot
+        // break out of the surrounding HTML attribute in RichText.
+        .replace(/"/g, amp + "#34;");
 }
 
 function formatMessage(text) {

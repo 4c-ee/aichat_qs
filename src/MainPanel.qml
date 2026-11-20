@@ -197,6 +197,16 @@ PanelWindow {
             + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
     }
 
+    // Guard against sending before the user has picked a model, which would
+    // transmit an empty model and risk a server 400.
+    function ensureModelSelected() {
+        if (config.modelName)
+            return true;
+        console.error("Cannot send: no model selected. Pick a model first.");
+        root.isLoading = false;
+        return false;
+    }
+
     // Remove data produced by the disconnected legacy text-tool protocol from
     // histories that were saved before the protocol was unhooked.
     function sanitizeLegacyToolHistory(history) {
@@ -310,6 +320,9 @@ PanelWindow {
 
         var userMessage = root.messageHistory[historyIndex];
         if (!userMessage || userMessage.role !== "user")
+            return;
+
+        if (!root.ensureModelSelected())
             return;
 
         var retryHistory = root.messageHistory.slice(0, historyIndex + 1);
@@ -611,6 +624,8 @@ PanelWindow {
                     }
 
                     onSendRequested: (text, attachments) => {
+                        if (!root.ensureModelSelected())
+                            return;
                         attachmentProcessor.process(attachments, function(processedAttachments) {
                             var userMessage = { role: "user", content: text };
                             if (processedAttachments.length > 0) {

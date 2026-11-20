@@ -19,6 +19,10 @@ ColumnLayout {
     signal attachmentAdded(string filePath)
     signal attachmentRemoved(int index)
 
+    function isImage(path) {
+        return /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
+    }
+
     Layout.fillWidth: true
     spacing: 8
 
@@ -47,9 +51,9 @@ ColumnLayout {
                 Image {
                     anchors.fill: parent
                     anchors.margins: 8
-                    source: modelData.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? "file://" + modelData : ""
+                    source: root.isImage(modelData) ? "file://" + modelData : ""
                     fillMode: Image.PreserveAspectCrop
-                    visible: modelData.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+                    visible: root.isImage(modelData)
                 }
 
                 Text {
@@ -59,7 +63,7 @@ ColumnLayout {
                     font.family: root.config.fontFamily
                     font.pixelSize: 9
                     font.weight: Font.DemiBold
-                    visible: !modelData.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+                    visible: !root.isImage(modelData)
                 }
 
                 DeleteButton {
