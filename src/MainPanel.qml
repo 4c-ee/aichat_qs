@@ -27,20 +27,6 @@ PanelWindow {
 
     ApiClient {
         id: apiClient
-        onModelsReceived: (models) => {
-            root.cachedModelsList = models;
-            root.refreshModelFilter();
-            root.cachedModelsEndpoint = settings.apiEndpoint.trim();
-            root.cachedModelsKey = settings.apiKey.trim();
-            root.modelsFetched = true;
-            root.modelPickerStatus = models.length === 0 ? "No models returned by this endpoint." : "";
-        }
-        onModelsFailed: (error) => {
-            root.modelsFetched = false;
-            root.cachedModelsList = [];
-            root.refreshModelFilter();
-            root.modelPickerStatus = error;
-        }
         onResponseReceived: (response, reasoning) => {
             root.isLoading = false;
             var wasAtEnd = chatView.atYEnd;
@@ -193,52 +179,7 @@ PanelWindow {
     property bool isLoading: false
     property var attachments: []
     property string currentSessionId: ""
-    property string cachedModelsEndpoint: ""
-    property string cachedModelsKey: ""
-    property var cachedModelsList: []
-    property bool modelsFetched: false
-    property string modelPickerStatus: ""
-    property string modelFilterText: ""
     property bool assistantResponseStarted: false
-
-    function openModelPicker() {
-        if (modelPickerPopup.opened) {
-            modelPickerPopup.close();
-            return;
-        }
-
-        root.modelFilterText = "";
-        modelPickerPopup.open();
-        modelFilterField.forceActiveFocus();
-        var endpoint = settings.apiEndpoint.trim();
-        var key = settings.apiKey.trim();
-        if (root.cachedModelsEndpoint !== endpoint || root.cachedModelsKey !== key || !root.modelsFetched) {
-            filteredModelsModel.clear();
-            root.cachedModelsList = [];
-            root.refreshModelFilter();
-            root.modelsFetched = false;
-            root.modelPickerStatus = "Loading models...";
-            apiClient.getModels(endpoint, key);
-        } else {
-            console.log("Using cached models list");
-        }
-    }
-
-    function refreshModelFilter() {
-        filteredModelsModel.clear();
-        var filter = root.modelFilterText.trim().toLowerCase();
-        root.cachedModelsList.forEach(modelId => {
-            var modelName = String(modelId);
-            if (filter === "" || modelName.toLowerCase().indexOf(filter) !== -1) {
-                filteredModelsModel.append({
-                    modelId: modelName,
-                    displayName: modelName
-                });
-            }
-        });
-    }
-
-    onModelFilterTextChanged: root.refreshModelFilter()
 
     property var currentPersona: null
 
@@ -553,98 +494,15 @@ PanelWindow {
 
     ListModel { id: chatModel }
     ListModel { id: sessionsModel }
-    ListModel { id: filteredModelsModel }
+    ModelPicker {
+        id: modelPicker
+        config: config
+        apiClient: apiClient
+        settings: settings
 
-    Popup {
-        id: modelPickerPopup
-        parent: inputArea.modelPickerButton
-        x: 0
-        y: -height - 6
-        width: Math.min(300, root.implicitWidth - 32)
-        height: Math.min(440, Math.max(110, 48 + filteredModelsModel.count * 38
-            + (root.modelPickerStatus !== "" ? 48 : 12)))
-        padding: 6
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
-
-        background: Rectangle {
-            radius: config.controlRadius
-            color: config.surfaceColor
-            border.color: config.outerBorderColor
-            border.width: 1
-        }
-
-        contentItem: ColumnLayout {
-            spacing: 4
-
-            StyledTextField {
-                id: modelFilterField
-                Layout.fillWidth: true
-                config: config
-                placeholderText: "Filter models..."
-                text: root.modelFilterText
-                onTextEdited: root.modelFilterText = text
-            }
-
-            Text {
-                Layout.fillWidth: true
-                visible: root.modelPickerStatus !== ""
-                text: root.modelPickerStatus
-                color: config.dangerColor
-                font.family: config.fontFamily
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-            }
-
-            Text {
-                Layout.fillWidth: true
-                visible: root.modelFilterText.trim() !== ""
-                    && root.cachedModelsList.length > 0
-                    && filteredModelsModel.count === 0
-                text: "No models match this filter."
-                color: config.textMuted
-                font.family: config.fontFamily
-                font.pixelSize: 12
-            }
-
-            ListView {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                model: filteredModelsModel
-                clip: true
-                spacing: 3
-
-                delegate: ItemDelegate {
-                    id: modelDelegate
-                    width: ListView.view.width
-                    height: 35
-                    padding: 10
-
-                    contentItem: Text {
-                        text: model.displayName
-                        color: modelDelegate.highlighted
-                            ? config.accent1Hover
-                            : (model.modelId === config.modelName ? config.accent1 : config.textMain)
-                        font.family: config.fontFamily
-                        font.pixelSize: 13
-                        font.weight: modelDelegate.highlighted || model.modelId === config.modelName
-                            ? Font.DemiBold
-                            : Font.Normal
-                        verticalAlignment: Text.AlignVCenter
-                        elide: Text.ElideRight
-                    }
-
-                    background: Rectangle {
-                        radius: config.controlRadius
-                        color: modelDelegate.hovered ? config.accent1Hover : "transparent"
-                    }
-
-                    onClicked: {
-                        config.modelName = model.modelId;
-                        settings.lastModel = model.modelId;
-                        modelPickerPopup.close();
-                    }
-                }
-            }
+        onModelSelected: (modelId) => {
+            config.modelName = modelId;
+            settings.lastModel = modelId;
         }
     }
 
@@ -728,7 +586,7 @@ PanelWindow {
                     id: inputArea
                     config: config
                     isLoading: root.isLoading
-                    modelPickerOpen: modelPickerPopup.opened
+                    modelPickerOpen: modelPicker.opened
                     attachments: root.attachments
 
                     onAttachmentAdded: (filePath) => {
@@ -778,7 +636,7 @@ PanelWindow {
                         apiClient.stop();
                     }
                     onModelPickerRequested: () => {
-                        root.openModelPicker();
+                        modelPicker.show();
                     }
                 }
             }
