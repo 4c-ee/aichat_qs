@@ -114,7 +114,7 @@ QtObject {
             }
 
             var parseProc = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
-            parseProc.command = ["node", "src/htmlToText.js"];
+            parseProc.command = ["node", Qt.resolvedUrl("htmlToText.js").toLocalFile()];
             parseProc.stdinEnabled = true;
 
             var parseCollector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', parseProc);
