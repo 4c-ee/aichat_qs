@@ -534,6 +534,7 @@ PanelWindow {
     ListModel { id: sessionsModel }
     ModelPicker {
         id: modelPicker
+        parent: inputArea.modelPickerButton
         config: config
         apiClient: apiClient
         settings: settings

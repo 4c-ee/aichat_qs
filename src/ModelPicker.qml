@@ -18,10 +18,11 @@ Popup {
     property string modelPickerStatus: ""
     property string modelFilterText: ""
 
-    parent: root.config ? null : undefined
     x: 0
     y: -height - 6
     width: Math.min(300, root.config ? root.config.panelWidth : 500)
+    height: Math.min(440, Math.max(110, 48 + filteredModelsModel.count * 38
+        + (root.modelPickerStatus !== "" ? 48 : 12)))
     padding: 6
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
 
@@ -113,6 +114,8 @@ Popup {
         root.modelFilterText = "";
         root.refreshModelFilter();
     }
+
+    onModelFilterTextChanged: root.refreshModelFilter()
 
     function show() {
         if (root.opened) {
