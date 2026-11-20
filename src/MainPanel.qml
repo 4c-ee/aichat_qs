@@ -7,7 +7,6 @@ import QtCore
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
-import "ApiClient.js" as ApiClientJs
 import "MessageFormatter.js" as MessageFormatter
 
 PanelWindow {
@@ -177,10 +176,6 @@ PanelWindow {
     property string modelFilterText: ""
     property bool assistantResponseStarted: false
 
-    function openSettings() {
-        settingsPanelRequested();
-    }
-
     function openModelPicker() {
         if (modelPickerPopup.opened) {
             modelPickerPopup.close();
@@ -225,7 +220,6 @@ PanelWindow {
         return ps.find(p => p.id === settings.currentPersonaId) || ps[0];
     }
 
-    property string systemInfoString: ""
     property bool systemInfoReady: false
     property var systemInfoMap: ({})
 
@@ -319,7 +313,6 @@ PanelWindow {
             if (info.DE) infoParts.push("Desktop Environment: " + info.DE);
             if (info.KERNEL) infoParts.push("Kernel: " + info.KERNEL);
 
-            root.systemInfoString = infoParts.join("\n");
             root.systemInfoMap = info;
             root.systemInfoReady = true;
 
@@ -578,10 +571,6 @@ PanelWindow {
         return MessageFormatter.formatMessage(text);
     }
 
-    function stripReasoningFromHistory(history) {
-        return MessageFormatter.stripReasoningFromHistory(history);
-    }
-
     function savePartialAssistantMessage() {
         if (!root.assistantResponseStarted || chatModel.count === 0)
             return;
@@ -596,10 +585,6 @@ PanelWindow {
         root.messageHistory = [...root.messageHistory, assistantMsg];
         chatModel.setProperty(lastIndex, "historyIndex", root.messageHistory.length - 1);
         root.assistantResponseStarted = false;
-    }
-
-    function contentToString(content) {
-        return MessageFormatter.contentToString(content);
     }
 
     function processAttachments(files, callback) {

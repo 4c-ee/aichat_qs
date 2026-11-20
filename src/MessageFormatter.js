@@ -84,19 +84,6 @@ function stripLegacyToolCall(text) {
     return String(text).replace(legacyToolCall, "").replace(/\s+$/, "");
 }
 
-function stripReasoningFromHistory(history) {
-    var cleaned = [];
-    for (var i = 0; i < history.length; i++) {
-        var msg = history[i];
-        if (msg.role === "assistant") {
-            cleaned.push({ role: "assistant", content: msg.content });
-        } else {
-            cleaned.push(msg);
-        }
-    }
-    return cleaned;
-}
-
 function contentToString(content) {
     if (typeof content === "string") return content;
     if (Array.isArray(content)) {

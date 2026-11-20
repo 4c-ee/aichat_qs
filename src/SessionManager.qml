@@ -9,9 +9,6 @@ QtObject {
     property var resolveSystemPromptFn
     property var currentPersona
 
-    signal sessionCreated(string id)
-    signal sessionLoaded(var history)
-
     function generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substring(2);
     }
