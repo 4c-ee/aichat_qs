@@ -935,7 +935,7 @@ Popup {
                     font.family: root.config.fontFamily
                     font.pixelSize: 15
                     font.weight: Font.DemiBold
-                    wrapMode: Text.Word
+                    wrapMode: Text.WordWrap
                 }
 
                 Text {

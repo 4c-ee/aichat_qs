@@ -33,6 +33,22 @@ Item {
         }
     }
 
+    Timer {
+        id: chatTimeoutTimer
+        interval: 60000
+        repeat: false
+        onTriggered: {
+            if (!root.activeXhr)
+                return;
+
+            var timedOutXhr = root.activeXhr;
+            timedOutXhr.userStopped = true;
+            root.activeXhr = null;
+            timedOutXhr.abort();
+            root.errorOccurred("Request timed out. The endpoint may be unreachable or overloaded.");
+        }
+    }
+
     signal responseReceived(string content, string reasoning)
     signal responseChunk(string content)
     signal thinkingChunk(string content)
@@ -246,6 +262,7 @@ Item {
         var xhr = new XMLHttpRequest();
         xhr.userStopped = false;
         root.activeXhr = xhr;
+        chatTimeoutTimer.restart();
         xhr.open("POST", url, true);
         xhr.setRequestHeader("Content-Type", "application/json");
         if (trimmedKey !== "")
@@ -287,6 +304,7 @@ Item {
                 }
             }
             if (xhr.readyState === 4) {
+                chatTimeoutTimer.stop();
                 root.activeXhr = null;
                 if (xhr.status === 200) {
                     if (stream) {
@@ -321,6 +339,7 @@ Item {
             if (xhr.userStopped)
                 return;
 
+            chatTimeoutTimer.stop();
             root.activeXhr = null;
             root.errorOccurred("Network Error: Connection failed.");
         };
@@ -330,6 +349,8 @@ Item {
     function stop() {
         if (root.activeXhr) {
             isStreaming = false;
+
+            chatTimeoutTimer.stop();
 
             var xhr = root.activeXhr;
             root.activeXhr = null;

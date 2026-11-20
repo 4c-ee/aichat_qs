@@ -98,6 +98,11 @@ QtObject {
         if (index !== -1) {
             sessions.splice(index, 1);
             settings.savedSessions = JSON.stringify(sessions);
+
+            // Clear dangling lastSessionId if the deleted session was the last one.
+            if (settings.lastSessionId === id) {
+                settings.lastSessionId = sessions.length > 0 ? sessions[0].id : "";
+            }
             return sessions;
         }
         return sessions;

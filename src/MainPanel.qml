@@ -362,6 +362,11 @@ PanelWindow {
     }
 
     onCurrentPersonaChanged: {
+        // Guard against switching personas before system info is ready,
+        // which would bake empty {os}, {kernel} etc. into the stored system message.
+        if (!systemInfoReady)
+            return;
+
         if (messageHistory.length > 0 && messageHistory[0].role === "system") {
             var newSystem = resolveSystemPrompt(currentPersona.system) + (currentPersona.personality ? "\n\n" + currentPersona.personality : "");
             messageHistory[0].content = newSystem;
