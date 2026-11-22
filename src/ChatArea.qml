@@ -70,6 +70,16 @@ ListView {
                         enabled: !root.isLoading
                         onClicked: root.retryRequested(model.historyIndex)
                     }
+
+                    MessageActionButton {
+                        Layout.alignment: Qt.AlignVCenter
+                        iconSource: "svgs/copy.svg"
+                        hoverIconSource: "svgs/copy-hover.svg"
+                        tooltipText: "Copy message"
+                        config: root.config
+                        enabled: !root.isLoading
+                        onClicked: Qt.application.clipboard().text = model.message
+                    }
                 }
 
                 TextEdit {
@@ -83,7 +93,6 @@ ListView {
                     wrapMode: Text.WordWrap
                     selectByMouse: true
                     readOnly: true
-                    background: null
                 }
 
             }
@@ -321,6 +330,16 @@ ListView {
                         config: root.config
                         enabled: !root.isLoading && model.historyIndex >= 0
                         onClicked: root.forkRequested(model.historyIndex)
+                    }
+
+                    MessageActionButton {
+                        Layout.alignment: Qt.AlignVCenter
+                        iconSource: "svgs/copy.svg"
+                        hoverIconSource: "svgs/copy-hover.svg"
+                        tooltipText: "Copy message"
+                        config: root.config
+                        enabled: !root.isLoading && model.historyIndex >= 0
+                        onClicked: Qt.application.clipboard().text = model.message
                     }
                 }
 
