@@ -1,5 +1,4 @@
 Fixes/QoL:
-1. Actually show sent images in the chat history (preferably with a way to enlarge them on click or something)
 2. Main panel flickers on chat list close
 3. On settings menu close, there's a split second where the corners are unrounded and don't fit in the rounded panel
 4. Sticky thinking header

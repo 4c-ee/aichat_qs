@@ -136,6 +136,40 @@ ListView {
                     }
                 }
 
+                // Inline image attachments
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Repeater {
+                        model: model.attachments || []
+                        Rectangle {
+                            width: 140
+                            height: 140
+                            radius: 10
+                            color: root.config.nestedSurfaceColor
+                            border.color: root.config.subtleBorderColor
+                            border.width: 1
+                            clip: true
+
+                            Image {
+                                anchors.fill: parent
+                                source: "file://" + modelData
+                                fillMode: Image.PreserveAspectCrop
+                                smooth: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    enlargePopupImage.source = "file://" + modelData
+                                    enlargePopup.open()
+                                }
+                            }
+                        }
+                    }
+                }
+
                 TextEdit {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Math.max(22, contentHeight)
@@ -495,6 +529,37 @@ ListView {
                     wrapMode: Text.WordWrap
                     textFormat: Text.PlainText
                 }
+            }
+        }
+
+        // Click-to-enlarge for attached images shown in chat history
+        Popup {
+            id: enlargePopup
+            modal: true
+            focus: true
+            x: 0
+            y: 0
+            width: parent.width
+            height: parent.height
+            background: Rectangle { color: "black"; opacity: 0.85 }
+
+            Image {
+                id: enlargePopupImage
+                anchors.centerIn: parent
+                fillMode: Image.PreserveAspectFit
+                width: Math.min(parent.width * 0.9, 1000)
+                height: Math.min(parent.height * 0.9, 800)
+                smooth: true
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: enlargePopup.close()
+            }
+
+            Shortcut {
+                sequence: "Escape"
+                onActivated: enlargePopup.close()
             }
         }
     }

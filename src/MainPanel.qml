@@ -691,6 +691,9 @@ PanelWindow {
                             chatModel.append({
                                 sender: "you",
                                 message: text,
+                                attachments: attachments.filter(function(p) {
+                                    return /\.(jpg|jpeg|png|gif|webp)$/i.test(p);
+                                }),
                                 thinking: "",
                                 historyIndex: root.messageHistory.length - 1,
                                 toolName: "",
