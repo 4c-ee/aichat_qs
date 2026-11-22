@@ -13,7 +13,7 @@ QtObject {
 
     function fetch() {
         var proc = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
-        proc.command = ["sh", "-c", "echo 'DATE:' $(date); echo 'USER:' $USER; echo 'HOSTNAME:' $HOSTNAME; uname -r | sed 's/^/KERNEL: /'; cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d= -f2 | sed 's/\"//g' | sed 's/^/OS: /'; echo $XDG_CURRENT_DESKTOP | grep -v '^$' | sed 's/^/DE: /'"];
+        proc.command = ["sh", "-c", "echo 'DATE:' $(date '+%A, %B %d, %I:%M %p'); echo 'USER:' $USER; echo 'HOSTNAME:' $HOSTNAME; uname -r | sed 's/^/KERNEL: /'; cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d= -f2 | sed 's/\"//g' | sed 's/^/OS: /'; echo $XDG_CURRENT_DESKTOP | grep -v '^$' | sed 's/^/DE: /'"];
 
         var collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector { }', proc);
         proc.stdout = collector;
@@ -22,10 +22,13 @@ QtObject {
             var lines = collector.text.split('\n');
             var info = {};
             lines.forEach(function(line) {
-                var parts = line.split(':', 2);
-                if (parts.length === 2) {
-                    var key = parts[0].trim();
-                    var value = parts[1].trim();
+                // Split on the first colon only so values containing colons
+                // (e.g. a verbose time like "Sunday, November 22, 07:15 AM")
+                // survive intact instead of being truncated at "07".
+                var colonIdx = line.indexOf(':');
+                if (colonIdx !== -1) {
+                    var key = line.substring(0, colonIdx).trim();
+                    var value = line.substring(colonIdx + 1).trim();
                     if (key && value) info[key] = value;
                 }
             });
