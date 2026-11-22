@@ -16,6 +16,7 @@ ShellRoot {
         root.panelTransitionActive = true;
 
         if (mainPanel.opened) {
+            overlayPanel.savePendingSettings();
             root.closingPanel = true;
             if (!overlayPanel.prepareToClose())
                 mainPanel.opened = false;

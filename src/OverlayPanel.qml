@@ -43,6 +43,14 @@ PanelWindow {
         settingsPopup.open();
     }
 
+    // Persist any unsaved settings draft before the panel is toggled closed
+    // (e.g. via the IPC toggle binding), so changes aren't lost when the
+    // settings view is dismissed without clicking "save".
+    function savePendingSettings() {
+        if (root.settingsActive)
+            settingsPopup.saveSettings();
+    }
+
     function openChatList() {
         chatList.open();
         settingsPopup.close();
