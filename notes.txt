@@ -3,7 +3,6 @@ Fixes/QoL:
 2. Main panel flickers on chat list close
 3. On settings menu close, there's a split second where the corners are unrounded and don't fit in the rounded panel
 4. Sticky thinking header
-5. Chats should open with thinking collapsed
 
 Difficult fixes:
 1. New Persona menu needs to have blur (remember to fade out with IPC toggle before settings menu)

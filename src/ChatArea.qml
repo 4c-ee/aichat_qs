@@ -170,7 +170,7 @@ ListView {
             border.color: root.config.outerBorderColor
             border.width: 1
 
-            property bool expanded: true
+            property bool expanded: false
 
             ColumnLayout {
                 id: thoughtColumn
