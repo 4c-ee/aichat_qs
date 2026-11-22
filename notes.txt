@@ -3,9 +3,7 @@ Fixes/QoL:
 2. Main panel flickers on chat list close
 3. On settings menu close, there's a split second where the corners are unrounded and don't fit in the rounded panel
 4. Sticky thinking header
-Time displays strangely; "Sunday, November 22, 07:15 AM" is given to the model as "Sun Nov 22 07", where 07 is ambiguous. Consider something more verbose like "Sunday, Nov. 22, 07:15 AM".
-7. ~~Persona delete confirmation~~ (done)
-
+5. Chats should open with thinking collapsed
 
 Difficult fixes:
 1. New Persona menu needs to have blur (remember to fade out with IPC toggle before settings menu)
@@ -13,14 +11,13 @@ Difficult fixes:
 3. Settings menu steals Hyprland window focus and gets finnicky on giving back
 4. Some sort of shortcut or transparent window open or any way to make the pane push windows in Hyprland out of the way, sometimes I like the overlay-ness and sometimes I need it as a separate sidebar for side-by-side research and quick chats.
 "When exclusionMode is set to ExclusionMode.Ignore, the panel floats over windows. Switching it to ExclusionMode.Auto or ExclusionMode.Normal tells Hyprland via the Wayland layer-shell protocol to reserve screen space and reflow tiled windows." 
-then add a little pin button or something to the top
+then add a little pin button or something to the top/new
+5. Edit button doesn't actually do anything
 
 Features:
-1. ~~Edit message button (both sides)~~ (done)
-2. Multiple API setups (basically just a copy+paste of persona system but for endpoint+key pairs?)
-3. ~~Animate ellipses on thinking (remove ellipses after thinking is done)~~ (done)
-4. Chat trash rather than delete? Add a separate list panel (accessed through regular chat list) that lets you restore chats or delete everything.
-5. Don't-save-chat button (symbol: ghost? eye? incognito? something like that) on new chat to, well, not save the chat.
+1. Multiple API setups (basically just a copy+paste of persona system but for endpoint+key pairs?)
+2. Chat trash rather than delete? Add a separate list panel (accessed through regular chat list) that lets you restore chats or delete everything.
+3. Don't-save-chat button (symbol: ghost? eye? incognito? something like that) on new chat to, well, not save the chat.
 
 Other:
 1. Only save chats after a message is actually sent, replacing the "new chat" system so the user isn't constantly deleting a million blank chats.

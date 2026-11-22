@@ -41,7 +41,7 @@ Button {
             source: root.hovered && root.hoverIconSource != ""
                 ? root.hoverIconSource
                 : root.iconSource
-            sourceSize: Qt.size(48, 48)
+            sourceSize: Qt.size(16, 16)
             fillMode: Image.PreserveAspectFit
             smooth: true
         }
