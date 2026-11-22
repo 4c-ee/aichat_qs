@@ -12,13 +12,8 @@ ListView {
 
     signal retryRequested(int historyIndex)
     signal forkRequested(int historyIndex)
-    signal messageEdited(int historyIndex, string newText)
 
-    property int editingIndex: -1
-    property string editingDraft: ""
     property string thinkingDots: ""
-
-    onEditingIndexChanged: root.forceLayout()
 
     Timer {
         id: thinkingTimer
@@ -86,8 +81,7 @@ ListView {
                         hoverIconSource: "svgs/retry-hover.svg"
                         tooltipText: "Resend this message"
                         config: root.config
-                        enabled: !root.isLoading && root.editingIndex === -1
-                        visible: root.editingIndex === -1
+                        enabled: !root.isLoading
                         onClicked: root.retryRequested(model.historyIndex)
                     }
 
@@ -97,42 +91,8 @@ ListView {
                         hoverIconSource: "svgs/copy-hover.svg"
                         tooltipText: "Copy message"
                         config: root.config
-                        enabled: !root.isLoading && root.editingIndex === -1
-                        visible: root.editingIndex === -1
+                        enabled: !root.isLoading
                         onClicked: Qt.application.clipboard().text = model.message
-                    }
-
-                    MessageActionButton {
-                        Layout.alignment: Qt.AlignVCenter
-                        iconSource: "svgs/edit.svg"
-                        hoverIconSource: "svgs/edit-hover.svg"
-                        tooltipText: "Edit message"
-                        config: root.config
-                        enabled: !root.isLoading && root.editingIndex === -1
-                        visible: root.editingIndex === -1
-                        onClicked: {
-                            root.editingDraft = model.message;
-                            root.editingIndex = index;
-                        }
-                    }
-
-                    RetroButton {
-                        Layout.alignment: Qt.AlignVCenter
-                        visible: root.editingIndex === index
-                        config: root.config
-                        text: "Save"
-                        onClicked: {
-                            root.messageEdited(model.historyIndex, root.editingDraft);
-                            root.editingIndex = -1;
-                        }
-                    }
-
-                    RetroButton {
-                        Layout.alignment: Qt.AlignVCenter
-                        visible: root.editingIndex === index
-                        config: root.config
-                        text: "Cancel"
-                        onClicked: root.editingIndex = -1
                     }
                 }
 
@@ -173,21 +133,14 @@ ListView {
                 TextEdit {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Math.max(22, contentHeight)
-                    text: root.editingIndex === index ? root.editingDraft : model.message
+                    text: model.message
                     textFormat: Text.PlainText
                     color: root.config.textMain
                     font.family: root.config.fontFamily
                     font.pixelSize: 17
                     wrapMode: Text.WordWrap
                     selectByMouse: true
-                    readOnly: root.editingIndex !== index
-                    focus: root.editingIndex === index
-                    onEditingFinished: {
-                        if (root.editingIndex === index) {
-                            root.messageEdited(model.historyIndex, root.editingDraft);
-                            root.editingIndex = -1;
-                        }
-                    }
+                    readOnly: true
                 }
 
             }
@@ -423,8 +376,7 @@ ListView {
                         hoverIconSource: "svgs/fork-hover.svg"
                         tooltipText: "Fork conversation here"
                         config: root.config
-                        enabled: !root.isLoading && model.historyIndex >= 0 && root.editingIndex === -1
-                        visible: root.editingIndex === -1
+                        enabled: !root.isLoading && model.historyIndex >= 0
                         onClicked: root.forkRequested(model.historyIndex)
                     }
 
@@ -434,63 +386,22 @@ ListView {
                         hoverIconSource: "svgs/copy-hover.svg"
                         tooltipText: "Copy message"
                         config: root.config
-                        enabled: !root.isLoading && model.historyIndex >= 0 && root.editingIndex === -1
-                        visible: root.editingIndex === -1
+                        enabled: !root.isLoading && model.historyIndex >= 0
                         onClicked: Qt.application.clipboard().text = model.message
-                    }
-
-                    MessageActionButton {
-                        Layout.alignment: Qt.AlignVCenter
-                        iconSource: "svgs/edit.svg"
-                        hoverIconSource: "svgs/edit-hover.svg"
-                        tooltipText: "Edit message"
-                        config: root.config
-                        enabled: !root.isLoading && model.historyIndex >= 0 && root.editingIndex === -1
-                        visible: root.editingIndex === -1
-                        onClicked: {
-                            root.editingDraft = model.message;
-                            root.editingIndex = index;
-                        }
-                    }
-
-                    RetroButton {
-                        Layout.alignment: Qt.AlignVCenter
-                        visible: root.editingIndex === index
-                        config: root.config
-                        text: "Save"
-                        onClicked: {
-                            root.messageEdited(model.historyIndex, root.editingDraft);
-                            root.editingIndex = -1;
-                        }
-                    }
-
-                    RetroButton {
-                        Layout.alignment: Qt.AlignVCenter
-                        visible: root.editingIndex === index
-                        config: root.config
-                        text: "Cancel"
-                        onClicked: root.editingIndex = -1
                     }
                 }
 
                 TextEdit {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Math.max(22, contentHeight)
-                    text: root.editingIndex === index ? root.editingDraft : root.formatMessageFn(model.message)
-                    textFormat: root.editingIndex === index ? Text.PlainText : Text.RichText
+                    text: root.formatMessageFn(model.message)
+                    textFormat: Text.RichText
                     color: root.config.textMain
                     font.family: root.config.fontFamily
                     font.pixelSize: 17
                     wrapMode: Text.WordWrap
                     selectByMouse: true
-                    readOnly: root.editingIndex !== index
-                    focus: root.editingIndex === index
-                    onEditingFinished: {
-                        if (root.editingIndex === index) {
-                            root.messageEdited(model.historyIndex, root.editingDraft);
-                            root.editingIndex = -1;
-                        }
-                    }
+                    readOnly: true
                 }
 
             }
