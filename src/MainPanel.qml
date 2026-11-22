@@ -375,21 +375,6 @@ PanelWindow {
         updateSessionsModel();
     }
 
-    function editMessage(historyIndex, newText) {
-        if (historyIndex < 0 || historyIndex >= root.messageHistory.length)
-            return;
-
-        var msg = root.messageHistory[historyIndex];
-        if (msg.role !== "user" && msg.role !== "assistant")
-            return;
-
-        msg.content = newText;
-        // Reassign to notify listeners of the in-place mutation.
-        root.messageHistory = [...root.messageHistory];
-        root.saveCurrentSession();
-        root.rebuildChatModel(root.messageHistory);
-    }
-
     function loadSession(id) {
         var session = sessionManager.loadSession(id);
         if (session) {
@@ -642,7 +627,6 @@ PanelWindow {
 
                     onRetryRequested: (historyIndex) => root.retryMessage(historyIndex)
                     onForkRequested: (historyIndex) => root.forkMessage(historyIndex)
-                    onMessageEdited: (historyIndex, newText) => root.editMessage(historyIndex, newText)
                 }
 
                 InputArea {
