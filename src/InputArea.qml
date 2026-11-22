@@ -253,10 +253,10 @@ ColumnLayout {
                         visible: !root.isLoading
 
                         Text {
-                            text: "send →"
+                            text: "→"
                             color: sendMouseArea.containsMouse ? root.config.accent1Hover : root.config.accent1
                             font.family: root.config.fontFamily
-                            font.pixelSize: 15
+                            font.pixelSize: 26
                             font.weight: Font.DemiBold
                         }
                     }
