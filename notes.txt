@@ -19,9 +19,8 @@ Features:
 3. Don't-save-chat button (symbol: ghost? eye? incognito? something like that) on new chat to, well, not save the chat.
 
 Other:
-1. Only save chats after a message is actually sent, replacing the "new chat" system so the user isn't constantly deleting a million blank chats.
-2. When in blank chat, write message bubble should move to the center (height-wise) and animate down/up on send/clear
-3. Typography settings, set <i> and <b> to specific font weight/styles (some users may prefer something like DemiBold rather than full Bold on some fonts)
+1. When in blank chat, write message bubble should move to the center (height-wise) and animate down/up on send/clear
+2. Typography settings, set <i> and <b> to specific font weight/styles (some users may prefer something like DemiBold rather than full Bold on some fonts)
 
 Long-horizon tasks (don't implement unless told to):
 1. Settings redesign into floating pane like chat list, halve height and add scrolling to show clearly it's separate, slide in and out from top. (low priority, large task)

@@ -133,12 +133,16 @@ PanelWindow {
         id: systemInfo
 
         onFetched: {
-            // System info probe finished: create the initial session or
-            // refresh the system message with the probed date/time/etc.
+            // System info probe finished: refresh the system message with the
+            // probed date/time/etc. If no session exists yet, seed the local
+            // system prompt but do not persist a session -- sessions are only
+            // created once the user sends their first message, so blank chats
+            // are never written to disk.
             if (currentSessionId === "") {
-                var session = sessionManager.createNewSession();
-                currentSessionId = session.id;
-                root.messageHistory = session.history;
+                if (messageHistory.length === 1 && messageHistory[0].role === "system") {
+                    messageHistory[0].content = root.currentSystemPrompt();
+                    root.messageHistory = [...root.messageHistory];
+                }
             } else if (messageHistory.length > 0 && messageHistory[0].role === "system") {
                 var resolvedSystem = root.currentSystemPrompt();
                 if (messageHistory[0].content !== resolvedSystem) {
@@ -412,12 +416,16 @@ PanelWindow {
     }
 
     function createNewSession() {
-        var session = sessionManager.createNewSession();
-        currentSessionId = session.id;
-        root.messageHistory = session.history;
+        // A new chat no longer creates a persisted blank session: drop the
+        // session id so the next sent message starts a fresh session that is
+        // only saved once it has actual content. Reset the view to the system
+        // prompt without persisting anything yet.
+        currentSessionId = "";
+        settings.lastSessionId = "";
+        root.messageHistory = systemInfo.systemInfoReady
+            ? [{ role: "system", content: root.currentSystemPrompt() }]
+            : [{ role: "system", content: "You are a helpful assistant." }];
         chatModel.clear();
-        sessionManager.saveCurrentSession(messageHistory);
-        updateSessionsModel();
     }
 
     function updateSessionsModel() {
@@ -657,6 +665,21 @@ PanelWindow {
                         if (!root.ensureModelSelected())
                             return;
                         attachmentProcessor.process(attachments, function(processedAttachments) {
+                            // Create the session lazily on the first sent message
+                            // so blank chats are never persisted to disk. This
+                            // runs right before the user message is appended,
+                            // so a session is only saved once it has content.
+                            if (root.currentSessionId === "") {
+                                if (systemInfo.systemInfoReady
+                                        && messageHistory.length === 1
+                                        && messageHistory[0].role === "system") {
+                                    messageHistory[0].content = root.currentSystemPrompt();
+                                    root.messageHistory = [...root.messageHistory];
+                                }
+                                var session = sessionManager.createNewSession();
+                                root.currentSessionId = session.id;
+                                settings.lastSessionId = session.id;
+                            }
                             var userMessage = { role: "user", content: text };
                             if (processedAttachments.length > 0) {
                                 userMessage.content = [
