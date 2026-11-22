@@ -21,6 +21,8 @@ Popup {
 
     signal personaSelected(string id)
 
+    property string personaToDeleteId: ""
+
     x: 0
     y: 0
     width: parent.width
@@ -561,18 +563,8 @@ Popup {
                                     visible: model.id !== "default"
                                     config: root.config
                                     onClicked: {
-                                        var parsedPersonas = JSON.parse(root.settings.personas);
-                                        var index = parsedPersonas.findIndex(persona => persona.id === model.id);
-                                        if (index !== -1) {
-                                            parsedPersonas.splice(index, 1);
-                                            root.settings.personas = JSON.stringify(parsedPersonas);
-                                            if (root.settings.currentPersonaId === model.id)
-                                                root.settings.currentPersonaId = "default";
-                                            root.computeCurrentPersonaFn();
-
-                                            personasModel.clear();
-                                            parsedPersonas.forEach(persona => personasModel.append(persona));
-                                        }
+                                        root.personaToDeleteId = model.id;
+                                        deletePersonaConfirm.open();
                                     }
                                 }
                             }
@@ -955,6 +947,70 @@ Popup {
                         onClicked: {
                             discardConfirm.close();
                             root.close();
+                        }
+                    }
+                }
+            }
+        }
+
+        DarkPopup {
+            id: deletePersonaConfirm
+            config: root.config
+            modal: true
+            focus: true
+            width: Math.min(400, parent.width - 32)
+            height: Math.min(200, parent.height - 32)
+
+            ColumnLayout {
+                anchors.centerIn: parent
+                spacing: 16
+
+                Text {
+                    text: "Delete persona?"
+                    color: root.config.textMain
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    text: "This cannot be undone."
+                    color: root.config.textMuted
+                    font.family: root.config.fontFamily
+                    font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
+
+                RowLayout {
+                    spacing: 9
+
+                    Item { Layout.fillWidth: true }
+
+                    RetroButton {
+                        text: "Cancel"
+                        config: root.config
+                        onClicked: deletePersonaConfirm.close()
+                    }
+
+                    RetroButton {
+                        text: "Delete"
+                        config: root.config
+                        onClicked: {
+                            var parsedPersonas = JSON.parse(root.settings.personas);
+                            var index = parsedPersonas.findIndex(persona => persona.id === root.personaToDeleteId);
+                            if (index !== -1) {
+                                parsedPersonas.splice(index, 1);
+                                root.settings.personas = JSON.stringify(parsedPersonas);
+                                if (root.settings.currentPersonaId === root.personaToDeleteId)
+                                    root.settings.currentPersonaId = "default";
+                                root.computeCurrentPersonaFn();
+
+                                personasModel.clear();
+                                parsedPersonas.forEach(persona => personasModel.append(persona));
+                            }
+                            root.personaToDeleteId = "";
+                            deletePersonaConfirm.close();
                         }
                     }
                 }
