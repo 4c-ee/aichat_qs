@@ -18,7 +18,7 @@ then add a little pin button or something to the top
 Features:
 1. ~~Edit message button (both sides)~~ (done)
 2. Multiple API setups (basically just a copy+paste of persona system but for endpoint+key pairs?)
-3. Animate ellipses on thinking (remove ellipses after thinking is done)
+3. ~~Animate ellipses on thinking (remove ellipses after thinking is done)~~ (done)
 4. Chat trash rather than delete? Add a separate list panel (accessed through regular chat list) that lets you restore chats or delete everything.
 5. Don't-save-chat button (symbol: ghost? eye? incognito? something like that) on new chat to, well, not save the chat.
 

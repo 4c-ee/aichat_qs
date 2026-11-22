@@ -16,8 +16,21 @@ ListView {
 
     property int editingIndex: -1
     property string editingDraft: ""
+    property string thinkingDots: ""
 
     onEditingIndexChanged: root.forceLayout()
+
+    Timer {
+        id: thinkingTimer
+        interval: 350
+        repeat: true
+        running: root.isLoading && chatModel.count > 0
+            && chatModel.get(chatModel.count - 1).sender === "ai"
+            && chatModel.get(chatModel.count - 1).message === ""
+        onTriggered: {
+            root.thinkingDots = root.thinkingDots.length >= 3 ? "" : root.thinkingDots + ".";
+        }
+    }
 
     model: chatModel
 
@@ -192,7 +205,7 @@ ListView {
                         anchors.left: thoughtArrow.right
                         anchors.leftMargin: 7
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Thinking..."
+                        text: "Thinking" + root.thinkingDots
                         color: root.config.textMuted
                         font.family: root.config.fontFamily
                         font.pixelSize: 16
