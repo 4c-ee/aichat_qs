@@ -72,14 +72,18 @@ ListView {
                     }
                 }
 
-                Text {
+                TextEdit {
                     Layout.fillWidth: true
+                    Layout.preferredHeight: Math.max(22, contentHeight)
                     text: model.message
+                    textFormat: Text.PlainText
                     color: root.config.textMain
                     font.family: root.config.fontFamily
                     font.pixelSize: 17
                     wrapMode: Text.WordWrap
-                    textFormat: Text.PlainText
+                    selectByMouse: true
+                    readOnly: true
+                    background: null
                 }
 
             }
