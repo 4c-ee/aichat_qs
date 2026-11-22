@@ -1,0 +1,40 @@
+Fixes/QoL:
+1. Actually show sent images in the chat history (preferably with a way to enlarge them on click or something)
+2. Main panel flickers on chat list close
+3. On settings menu close, there's a split second where the corners are unrounded and don't fit in the rounded panel
+4. Sticky thinking header
+Time displays strangely; "Sunday, November 22, 07:15 AM" is given to the model as "Sun Nov 22 07", where 07 is ambiguous. Consider something more verbose like "Sunday, Nov. 22, 07:15 AM".
+7. ~~Persona delete confirmation~~ (done)
+
+
+Difficult fixes:
+1. New Persona menu needs to have blur (remember to fade out with IPC toggle before settings menu)
+2. Use XDG file picker, not quickshell
+3. Settings menu steals Hyprland window focus and gets finnicky on giving back
+4. Some sort of shortcut or transparent window open or any way to make the pane push windows in Hyprland out of the way, sometimes I like the overlay-ness and sometimes I need it as a separate sidebar for side-by-side research and quick chats.
+"When exclusionMode is set to ExclusionMode.Ignore, the panel floats over windows. Switching it to ExclusionMode.Auto or ExclusionMode.Normal tells Hyprland via the Wayland layer-shell protocol to reserve screen space and reflow tiled windows." 
+then add a little pin button or something to the top
+
+Features:
+1. ~~Edit message button (both sides)~~ (done)
+2. Multiple API setups (basically just a copy+paste of persona system but for endpoint+key pairs?)
+3. Animate ellipses on thinking (remove ellipses after thinking is done)
+4. Chat trash rather than delete? Add a separate list panel (accessed through regular chat list) that lets you restore chats or delete everything.
+5. Don't-save-chat button (symbol: ghost? eye? incognito? something like that) on new chat to, well, not save the chat.
+
+Other:
+1. Only save chats after a message is actually sent, replacing the "new chat" system so the user isn't constantly deleting a million blank chats.
+2. When in blank chat, write message bubble should move to the center (height-wise) and animate down/up on send/clear
+3. Typography settings, set <i> and <b> to specific font weight/styles (some users may prefer something like DemiBold rather than full Bold on some fonts)
+
+Long-horizon tasks (don't implement unless told to):
+1. Settings redesign into floating pane like chat list, halve height and add scrolling to show clearly it's separate, slide in and out from top. (low priority, large task)
+
+2. Tool use, MCP. Will need to comply with OpenAI spec (tba). Helpful tools;
+- Weather (pull from public API? get location through IP rather than having the AI do it unless specified by the user)
+- Bash (manual user verification on all commands to make sure it's not going to rm / -rf)
+- Read/write file
+- Python (again, manual user verify)
+- Search (searXNG integration, previously the only tool)
+- Wikipedia (good to have for specific, trustworthy up-to-date)
+- Memory (learn about user, save specific things, allow user to edit / add / remove directly and assign all/some/none to personas)
