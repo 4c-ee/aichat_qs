@@ -222,8 +222,8 @@ ColumnLayout {
                 // Primary send / stop action
                 Rectangle {
                     id: sendButton
-                    Layout.preferredWidth: 86
-                    Layout.preferredHeight: 36
+                    Layout.preferredWidth: 48
+                    Layout.preferredHeight: 34
                     radius: root.config.controlRadius
                     color: root.config.nestedSurfaceColor
                     border.color: root.config.outerBorderColor
